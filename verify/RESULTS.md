@@ -1,6 +1,6 @@
 # COLDSTART — physics verification results
 
-Generated: **2026-10-12T06:35:37Z**  
+Generated: **2026-10-12T06:47:23Z**  
 Engine: `coldstart-engine-1.0`  
 Forecast: LIVE  
 
