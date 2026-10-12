@@ -46,8 +46,12 @@ def load_fill():
     return out
 
 
+SNAPSHOT_MODE = "--snapshot" in sys.argv
+
+
 def main():
-    env = data_sources.fetch_environment(13.0067, 80.2570, "2026-10-12")
+    env = data_sources.fetch_environment(13.0067, 80.2570, "2026-10-12",
+                                         snapshot=SNAPSHOT_MODE)
     env["launch_local"] = datetime(2026, 10, 12, 18, 0, tzinfo=IST)
     fill = load_fill()
 
@@ -167,8 +171,11 @@ def main():
     if bad:
         print(f"{bad} mismatch(es). Do NOT present the deck until these are reconciled.")
         return 1
-    print("All slide claims reproduce from the engine. Forecast provenance:",
-          env["sources"]["upper_air"]["source"])
+    src = env["sources"]["upper_air"]
+    line = f"Forecast provenance: {src['source']}"
+    if SNAPSHOT_MODE:
+        line += f"  [SNAPSHOT {src.get('snapshot_utc')}]"
+    print("All slide claims reproduce from the engine.", line)
     return 0
 
 

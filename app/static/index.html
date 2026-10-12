@@ -113,6 +113,14 @@
   .p-info{color:var(--accent);border-color:#1c4a63;background:#0c1a24}
 
   /* ---------- transparency ---------- */
+  .fl-snap { background: #3a2a12; color: #ffcc66; border-color: #6b4b1e; }
+  .b-snap { border-color: #6b4b1e; background: #2a1f0e; }
+  .snap-badge {
+    display: inline-block; padding: 2px 9px; border-radius: 999px;
+    font: 600 11px/1.6 var(--mono, monospace); letter-spacing: .04em;
+    background: #3a2a12; color: #ffcc66; border: 1px solid #6b4b1e;
+    white-space: nowrap;
+  }
   .trans{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
   .trans .cell{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:9px 11px}
   .trans .cell .k{color:var(--dim2);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em}
@@ -200,6 +208,11 @@
           <label class="f"><span class="lab"><span>Launch (local)</span></span>
             <input type="number" id="c-hour" min="0" max="23" value="18"></label>
         </div>
+        <label class="f" style="display:flex;align-items:center;gap:9px;margin-top:10px">
+          <input type="checkbox" id="c-snap" style="width:auto">
+          <span><b>Use pinned snapshot</b> <span class="note" style="display:block;margin-top:2px">
+            Replay a frozen copy of real forecast data with no network access, so the demo is
+            exactly reproducible. Everything is labelled <b>SNAPSHOT</b>.</span></span></label>
         <label class="f"><span class="lab"><span>Latitude</span><span class="val" id="v-lat">13.0067</span></span>
           <input type="range" id="c-lat" min="-60" max="60" step="0.0001" value="13.0067"></label>
         <label class="f"><span class="lab"><span>Longitude</span><span class="val" id="v-lon">80.2570</span></span>
@@ -445,9 +458,14 @@ function setpointValue() {
   const v = parseInt($("c-sp").value, 10);
   return v <= -1 ? "none" : String(v);
 }
+function wantSnapshot() {
+  const el = $("c-snap");
+  return !!(el && el.checked);
+}
 function designQuery() {
   const mat = $("c-mat") ? $("c-mat").value : "0.030";
   const p = new URLSearchParams({
+    snapshot: wantSnapshot() ? "1" : "0",
     lat: $("c-lat").value, lon: $("c-lon").value,
     date: $("c-date").value, launch_hour: $("c-hour").value,
     cells: $("c-cells").value, insulation_mm: $("c-ins").value,
@@ -560,14 +578,26 @@ function renderRun() {
    Transparency panel — shown wherever a number depends on weather
    ===================================================================== */
 function sourceFlag(src) {
-  const cls = src === "LIVE" ? "fl-live" : (src === "CACHED" ? "fl-cached" : "fl-isa");
+  const cls = src === "LIVE" ? "fl-live"
+            : src === "CACHED" ? "fl-cached"
+            : src === "SNAPSHOT" ? "fl-snap" : "fl-isa";
   return `<span class="flag ${cls}">${esc(src || "UNKNOWN")}</span>`;
+}
+/* The pinned-snapshot badge. One renderer, used by the Run tab, the Inspect tab
+   and the Export report, so the three can never disagree about provenance. */
+function snapBadge(t) {
+  if (!t || !t.snapshot || !t.snapshot.active) return "";
+  return `<span class="snap-badge" title="${esc(t.snapshot.note || "")}">${esc(t.snapshot.badge || "SNAPSHOT")}</span>`;
 }
 function renderTransparency(host, t, opts = {}) {
   if (!t) { host.innerHTML = ""; return; }
   const ua = t.sources.upper_air, so = t.sources.solar, ac = t.altitude_coverage;
-  const banner = ua.source === "LIVE"
-    ? `<div class="banner b-live"><b>Live forecast.</b> Upper-air data came from ${esc(ua.model || "the forecast API")}
+  const banner = ua.source === "SNAPSHOT"
+    ? `<div class="banner b-snap">${snapBadge(t)} <b>Pinned snapshot — no network was contacted.</b>
+       These are REAL API responses captured at ${esc(t.snapshot.retrieved_utc || "an unrecorded time")}
+       and replayed from a file, so this run is exactly reproducible. It is not a live forecast.</div>`
+    : ua.source === "LIVE"
+    ? `<div class="banner b-live">${snapBadge(t)} <b>Live forecast.</b> Upper-air data came from ${esc(ua.model || "the forecast API")}
        at ${esc(ua.retrieved_utc || "an unrecorded time")}. Every number on this page is derived from it.</div>`
     : ua.source === "CACHED"
       ? `<div class="banner b-cache"><b>Cached data — the live fetch failed.</b> This is the last real response saved to disk,
@@ -1194,7 +1224,7 @@ function renderReport(r) {
         <div class="glyph" aria-hidden="true">${glyph}</div>
         <div><div class="word">${esc(r.status)}</div><div class="sub">${esc(r.status_reason)}</div></div>
       </div>
-      <p class="note" style="margin-top:10px">Generated ${esc(r.generated_utc)} · engine ${esc((t.engine || {}).version || "")} · reproducible from the design values below.</p>
+      <p class="note" style="margin-top:10px">${snapBadge(t)} Generated ${esc(r.generated_utc)} · engine ${esc((t.engine || {}).version || "")} · reproducible from the design values below.</p>
     </div>
 
     <div class="panel"><h2>1. Mission</h2>
@@ -1206,7 +1236,7 @@ function renderReport(r) {
       </div>
     </div>
 
-    <div class="panel"><h2>2. Data freshness &amp; provenance</h2>
+    <div class="panel"><h2>2. Data freshness &amp; provenance ${snapBadge(t)}</h2>
       <div class="trans">
         <div class="cell"><div class="k">Upper-air</div><div class="v">${sourceFlag(t.sources.upper_air.source)} ${esc(t.sources.upper_air.model || "")}</div></div>
         <div class="cell"><div class="k">Retrieved (UTC)</div><div class="v">${esc(t.sources.upper_air.retrieved_utc || "not recorded")}</div></div>
@@ -1292,7 +1322,9 @@ $("b-verify").addEventListener("click", async () => {
     const d = await fetch("/api/verification").then(r => r.json());
     if (d.error) throw new Error(d.error + (d.hint ? " — " + d.hint : ""));
     renderVerification(d);
-    $("verify-status").textContent = `results generated ${d.generated_utc} · engine ${d.engine_version} · forecast ${d.provenance}`;
+    $("verify-status").innerHTML =
+      snapBadge(d.snapshot ? { snapshot: d.snapshot } : null) +
+      esc(` results generated ${d.generated_utc} · engine ${d.engine_version} · forecast ${d.provenance}`);
   } catch (err) {
     $("verify-status").textContent = "Failed: " + err.message;
     $("verify-result").innerHTML = `<div class="banner b-isa"><b>No verification results available.</b><br>
@@ -1309,7 +1341,16 @@ function renderVerification(d) {
         t4 = d.task4_convergence, t6 = d.task6_uncertainty;
   const host = $("verify-result");
 
+  // Audit Task 4(c): the Verification tab must show the snapshot badge too, not
+  // just the Run tab. Otherwise a judge could screenshot this page as "live".
+  const snapBanner = (d.snapshot && d.snapshot.active)
+    ? `<div class="banner b-snap">${snapBadge({ snapshot: d.snapshot })}
+        <b>These verification results were computed from the pinned snapshot</b>, not from a live
+        fetch. ${esc(d.snapshot.note || "")}</div>`
+    : "";
+
   host.innerHTML = `
+    ${snapBanner}
     <div class="panel">
       <h2>Evidence categories</h2>
       <table><thead><tr><th>Tag</th><th>Meaning</th><th>Present in this project</th></tr></thead><tbody>

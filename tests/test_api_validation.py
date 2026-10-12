@@ -88,5 +88,52 @@ class ApiObjectiveValidation(unittest.TestCase):
         self.assertEqual(status, 400)
 
 
+class ApiSnapshotToggle(unittest.TestCase):
+    """Audit Task 4(b): the toggle must reach the engine, and the badge must
+    reach the client. Both are checked over real HTTP."""
+
+    @classmethod
+    def setUpClass(cls):
+        import os.path
+        snap = os.path.join(ROOT, "data", "demo_snapshot.json")
+        if not os.path.exists(snap):
+            raise unittest.SkipTest("no pinned snapshot")
+        cls.httpd = HTTPServer(("127.0.0.1", 0), QuietHandler)
+        cls.port = cls.httpd.server_address[1]
+        cls.thread = threading.Thread(target=cls.httpd.serve_forever, daemon=True)
+        cls.thread.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.httpd.shutdown()
+        cls.httpd.server_close()
+
+    def get(self, path):
+        with urllib.request.urlopen(
+                f"http://127.0.0.1:{self.port}{path}", timeout=60) as r:
+            return json.loads(r.read().decode())
+
+    def test_snapshot_flag_reaches_the_simulation_and_returns_a_badge(self):
+        d = self.get("/api/plan?snapshot=1&date=2026-10-12")
+        t = d["transparency"]
+        self.assertTrue(t["snapshot_mode"], "the toggle did not reach build_env")
+        self.assertEqual(t["sources"]["upper_air"]["source"], "SNAPSHOT")
+        self.assertTrue(t["snapshot"]["badge"].startswith("SNAPSHOT "))
+        self.assertIn(t["snapshot"]["retrieved_utc"], t["snapshot"]["badge"])
+
+    def test_snapshot_run_is_reproducible_across_requests(self):
+        a = self.get("/api/plan?snapshot=1&date=2026-10-12")
+        b = self.get("/api/plan?snapshot=1&date=2026-10-12")
+        self.assertEqual(a["min_box_c"], b["min_box_c"])
+        self.assertEqual(a["verdict"], b["verdict"])
+        self.assertEqual(a["heat_lost_wh"], b["heat_lost_wh"])
+
+    def test_default_request_is_not_snapshot(self):
+        d = self.get("/api/plan?date=2026-10-12")
+        t = d["transparency"]
+        self.assertFalse(t["snapshot_mode"], "snapshot became the default")
+        self.assertIsNone(t["snapshot"]["badge"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -122,7 +122,11 @@ def build_env(parsed):
     if not date_str:
         date_str = datetime.now(data_sources.IST).strftime("%Y-%m-%d")
 
-    env = data_sources.fetch_environment(lat, lon, date_str)
+    # "snapshot=1" is the demo-replay switch. It is passed explicitly per request
+    # rather than held in a global, so two browser tabs can run different modes at
+    # once and a stale tab can never silently report live data as pinned.
+    use_snapshot = q.get("snapshot", ["0"])[0] not in ("0", "", "false", "False")
+    env = data_sources.fetch_environment(lat, lon, date_str, snapshot=use_snapshot)
     env["launch_local"] = datetime.strptime(
         f"{date_str} {launch_hour:02d}:00", "%Y-%m-%d %H:%M").replace(tzinfo=data_sources.IST)
     return env
@@ -136,11 +140,23 @@ def transparency_block(env):
     upper = srcs.get("upper_air", {})
     solar = srcs.get("solar", {})
 
+    snapshot_mode = bool(env.get("snapshot_mode"))
+
     return {
         "site": {"lat": env["site"]["lat"], "lon": env["site"]["lon"]},
         "date": env["date"],
         "launch_local": env["launch_local"].isoformat(),
         "night_hours": env["night_hours"],
+        # The demo-replay badge. `badge` is the exact string the UI, the exported
+        # report and the Verification tab all render, so they cannot disagree.
+        "snapshot_mode": snapshot_mode,
+        "snapshot": {
+            "active": snapshot_mode,
+            "retrieved_utc": upper.get("snapshot_utc") or upper.get("retrieved_utc"),
+            "badge": (f"SNAPSHOT {upper.get('snapshot_utc') or upper.get('retrieved_utc')}"
+                      if snapshot_mode else None),
+            "note": upper.get("note") if snapshot_mode else None,
+        },
         "sources": {
             "upper_air": {
                 "model": upper.get("model", "unknown"),

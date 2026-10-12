@@ -19,6 +19,9 @@ from datetime import datetime, timedelta, timezone
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "..", "cache")
+# The pinned demo snapshot. A frozen set of REAL responses with their original
+# retrieval time, so a demo can be replayed exactly without a network.
+SNAPSHOT_PATH = os.path.join(HERE, "..", "data", "demo_snapshot.json")
 os.makedirs(CACHE, exist_ok=True)
 
 IST = timezone(timedelta(hours=5, minutes=30))     # India Standard Time, fixed offset
@@ -28,9 +31,54 @@ IST = timezone(timedelta(hours=5, minutes=30))     # India Standard Time, fixed 
 PRESSURE_LEVELS = [1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 70, 50, 30, 20, 10]
 
 
-def _get_json(url, cache_name, timeout=35):
+def load_snapshot():
+    """Parse the pinned snapshot, or None if none has been written yet."""
+    if not os.path.exists(SNAPSHOT_PATH):
+        return None
+    with open(SNAPSHOT_PATH) as f:
+        return json.load(f)
+
+
+def _snapshot_get(cache_name):
+    """One feed out of the pinned snapshot. NEVER touches the network.
+
+    If the feed is not in the file we raise. We do not silently fall back to a
+    live fetch, and we certainly do not invent one: the whole point of the mode
+    is that it is reproducible and offline, so an incomplete snapshot is an
+    error to be fixed, not a gap to be papered over.
+    """
+    snap = load_snapshot()
+    if snap is None:
+        raise RuntimeError(
+            f"Pinned snapshot requested but {os.path.abspath(SNAPSHOT_PATH)} does "
+            "not exist. Run:  python app/snapshot.py")
+    feeds = snap.get("feeds") or {}
+    if cache_name not in feeds:
+        raise RuntimeError(
+            f"Pinned snapshot has no feed {cache_name!r}. It contains: "
+            + ", ".join(sorted(feeds)) + ". Nothing has been invented to fill the gap.")
+    rec = feeds[cache_name]
+    stamp = snap.get("retrieved_utc")
+    return rec["payload"], {
+        "source": "SNAPSHOT",
+        "url": rec.get("url"),
+        "model": rec.get("model"),
+        "retrieved_utc": stamp,
+        "snapshot_utc": stamp,
+        "note": ("Pinned demo snapshot: a REAL response captured at "
+                 f"{stamp}, replayed without contacting the network."),
+    }
+
+
+def _get_json(url, cache_name, timeout=35, snapshot=False):
     """Fetch a URL. If the network fails, fall back to the last saved REAL
-    response so the demo never dies on stage."""
+    response so the demo never dies on stage.
+
+    snapshot=True short-circuits all of that and reads the pinned file instead.
+    """
+    if snapshot:
+        return _snapshot_get(cache_name)
+
     path = os.path.join(CACHE, cache_name)
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "COLDSTART-sedhacks26/1.0"})
@@ -68,13 +116,14 @@ def _get_json(url, cache_name, timeout=35):
 # ---------------------------------------------------------------------------
 # SOURCE 1 + 2: Open-Meteo GFS  -- upper-air forecast AND solar irradiance
 # ---------------------------------------------------------------------------
-def fetch_environment(lat, lon, date_str):
-    """date_str = 'YYYY-MM-DD'. Returns the full real environment for a flight.
+def environment_urls(lat, lon, date_str):
+    """The exact request URLs and cache keys for one flight environment.
 
-    We fetch TWO days (date + next day) because a night flight launched at
-    18:00 runs past midnight, and we do not want the data to run out mid-flight.
+    Shared by the live fetcher and the snapshot writer so the pinned demo
+    snapshot is guaranteed to be keyed to the same URLs the engine asks for.
     """
-    end_str = (datetime.strptime(date_str, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+    end_str = (datetime.strptime(date_str, "%Y-%m-%d")
+               + timedelta(days=1)).strftime("%Y-%m-%d")
 
     variables = []
     for p in PRESSURE_LEVELS:
@@ -86,14 +135,34 @@ def fetch_environment(lat, lon, date_str):
         "start_date": date_str, "end_date": end_str,
         "wind_speed_unit": "ms", "timezone": "Asia/Kolkata",
     })
-    upper, upper_meta = _get_json(upper_url, f"upper_air_{lat}_{lon}_{date_str}.json")
-
     solar_url = "https://api.open-meteo.com/v1/forecast?" + urllib.parse.urlencode({
         "latitude": lat, "longitude": lon,
         "hourly": "shortwave_radiation,direct_normal_irradiance,temperature_2m",
         "start_date": date_str, "end_date": end_str, "timezone": "Asia/Kolkata",
     })
-    solar, solar_meta = _get_json(solar_url, f"solar_{lat}_{lon}_{date_str}.json")
+    return {
+        "upper_air": (upper_url, f"upper_air_{lat}_{lon}_{date_str}.json"),
+        "solar": (solar_url, f"solar_{lat}_{lon}_{date_str}.json"),
+    }
+
+
+def fetch_environment(lat, lon, date_str, snapshot=False):
+    """date_str = 'YYYY-MM-DD'. Returns the full real environment for a flight.
+
+    We fetch TWO days (date + next day) because a night flight launched at
+    18:00 runs past midnight, and we do not want the data to run out mid-flight.
+
+    snapshot=True replays the pinned demo snapshot and makes no network call at
+    all. The returned env then carries source "SNAPSHOT" and the snapshot's own
+    retrieval timestamp, which is what the UI badge and the exported report
+    display. Default (snapshot=False) is unchanged: live first, cached fallback.
+    """
+    urls = environment_urls(lat, lon, date_str)
+    upper_url, upper_key = urls["upper_air"]
+    solar_url, solar_key = urls["solar"]
+
+    upper, upper_meta = _get_json(upper_url, upper_key, snapshot=snapshot)
+    solar, solar_meta = _get_json(solar_url, solar_key, snapshot=snapshot)
 
     hours = upper["hourly"]["time"]
     profiles = []
@@ -160,6 +229,7 @@ def fetch_environment(lat, lon, date_str):
             "upper_air": {**upper_meta, "model": "NOAA GFS via Open-Meteo"},
             "solar": {**solar_meta, "model": "GFS shortwave radiation via Open-Meteo"},
         },
+        "snapshot_mode": bool(snapshot),
     }
 
 

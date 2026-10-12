@@ -1,7 +1,13 @@
 {
-  "generated_utc": "2026-10-12T06:50:36Z",
+  "generated_utc": "2026-10-12T07:03:52Z",
   "engine_version": "coldstart-engine-1.0",
   "provenance": "LIVE",
+  "snapshot": {
+    "active": false,
+    "retrieved_utc": null,
+    "badge": null,
+    "note": null
+  },
   "site": {
     "lat": 13.0067,
     "lon": 80.257,

@@ -58,8 +58,15 @@ DESIGNS = {
 }
 
 
+# Set by --snapshot on the command line. Module-level because build_env is called
+# from several tasks, and threading a flag through all of them would be a larger
+# change than this audit allows.
+SNAPSHOT_MODE = "--snapshot" in sys.argv
+
+
 def build_env(date=DATE, launch_hour=LAUNCH_HOUR):
-    env = data_sources.fetch_environment(SITE[0], SITE[1], date)
+    env = data_sources.fetch_environment(SITE[0], SITE[1], date,
+                                         snapshot=SNAPSHOT_MODE)
     env["launch_local"] = datetime.strptime(
         f"{date} {launch_hour:02d}:00", "%Y-%m-%d %H:%M").replace(tzinfo=IST)
     return env
@@ -523,6 +530,11 @@ def write_markdown(payload, path):
     A(f"Generated: **{payload['generated_utc']}**  ")
     A(f"Engine: `{payload['engine_version']}`  ")
     A(f"Forecast: {payload['provenance']}  ")
+    _snap = payload.get("snapshot") or {}
+    if _snap.get("active"):
+        A(f"**{_snap.get('badge')}** — replayed from `data/demo_snapshot.json`, a "
+          "frozen set of real API responses. No network was contacted. "
+          "Re-run without `--snapshot` for live data.")
     A("")
     A("Reproduce with:")
     A("")
@@ -761,10 +773,14 @@ def write_markdown(payload, path):
 
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
-    print("Fetching forecast ...")
+    print("Loading pinned snapshot ..." if SNAPSHOT_MODE
+          else "Fetching forecast ...")
     env = build_env()
-    prov = env.get("sources", {}).get("upper_air", {}).get("source", "UNKNOWN")
+    src = env.get("sources", {}).get("upper_air", {})
+    prov = src.get("source", "UNKNOWN")
     print(f"  provenance: {prov}")
+    if SNAPSHOT_MODE:
+        print(f"  SNAPSHOT {src.get('snapshot_utc')}  (no network contact)")
 
     print("Task 1/5  benchmarks ...")
     benchmarks = V.run_all_benchmarks()
@@ -836,6 +852,14 @@ def main():
         "generated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "engine_version": getattr(P, "ENGINE_VERSION", "unknown"),
         "provenance": prov,
+        # Same shape as server.transparency_block's snapshot object, so the UI can
+        # render one badge component for both the Verification tab and the report.
+        "snapshot": {
+            "active": SNAPSHOT_MODE,
+            "retrieved_utc": (env.get("sources", {}).get("upper_air", {}) or {}).get("snapshot_utc"),
+            "badge": (f"SNAPSHOT {src.get('snapshot_utc')}" if SNAPSHOT_MODE else None),
+            "note": (src.get("note") if SNAPSHOT_MODE else None),
+        },
         "site": {"lat": SITE[0], "lon": SITE[1], "date": DATE,
                  "launch_local": f"{DATE} {LAUNCH_HOUR:02d}:00 IST"},
         "categories_used": ["A", "B", "C", "D"],
