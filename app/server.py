@@ -450,6 +450,19 @@ class Handler(BaseHTTPRequestHandler):
             if route == "/api/job/start":
                 q = parse_qs(parsed.query)
                 kind = q.get("kind", ["optimise"])[0]
+
+                # Validate the objective BEFORE fetching the forecast or spawning a
+                # worker (audit finding A3). Without this, a typo started a job that
+                # silently fell back to the default objective, or surfaced as a
+                # generic job error minutes later after paying for a data fetch.
+                if kind in ("optimise", "battle"):
+                    valid_objectives = [o[0] for o in opt.OBJECTIVES]
+                    asked = q.get("objective", ["best_balance"])[0]
+                    if asked not in valid_objectives:
+                        return self._error(
+                            400, f"unknown objective {asked!r}",
+                            hint="valid objectives: " + ", ".join(valid_objectives))
+
                 env = build_env(parsed)
                 design = design_from_query(parsed)
 
