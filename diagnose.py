@@ -39,8 +39,7 @@ def free_port(preferred=8000):
     for port in (preferred, 8080, 8888, 9000, 0):
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            s.bind(("127.0.0.1", port))
+            s.bind(("0.0.0.0", port))
             got = s.getsockname()[1]
             s.close()
             return got, port == preferred
@@ -82,16 +81,20 @@ def main():
     else:
         say(WARN, "3. Port 8000 is ALREADY IN USE (something else has it).")
         # is the thing on 8000 actually our app? if so that is good news
+        is_coldstart = False
         try:
-            with urllib.request.urlopen("http://127.0.0.1:8000/api/health", timeout=5) as r:
-                if b"engine" in r.read():
-                    say(INFO, "     ...and it IS a COLDSTART server. It is probably already")
-                    say(INFO, "     running from an earlier attempt. Just open:")
+            with urllib.request.urlopen("http://127.0.0.1:8000/", timeout=5) as r:
+                body = r.read()
+                if b"COLDSTART" in body:
+                    is_coldstart = True
+                    say(INFO, "     ...and it IS a COLDSTART server. It is already running")
+                    say(INFO, "     and ready to use! Just open:")
                     say(INFO, "     http://127.0.0.1:8000")
         except Exception:
             pass
-        say(INFO, f"     Using port {port} for this test instead.")
-        problems.append(f"Port 8000 is busy. Start on another one: see the command at the end.")
+        say(INFO, f"     Testing a temporary server on port {port} instead.")
+        if not is_coldstart:
+            problems.append(f"Port 8000 is busy. Start on another one: see the command at the end.")
 
     # -------------------------------------------- 4. localhost vs 127.0.0.1 trap
     print()
@@ -118,11 +121,13 @@ def main():
     say(INFO, f"5. Starting the app on port {port} and fetching a real page...")
     env = dict(os.environ, PORT=str(port))
     log = os.path.join(os.path.dirname(HERE), "diagnose_server.log")
+    log_f = open(log, "w")
     try:
         proc = subprocess.Popen([sys.executable, "server.py"], cwd=APP, env=env,
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                stdout=log_f, stderr=subprocess.STDOUT,
                                 text=True)
     except Exception as exc:
+        log_f.close()
         say(FAIL, f"     Could not launch the server: {exc}")
         return 1
 
@@ -130,7 +135,9 @@ def main():
         up = False
         for _ in range(60):
             if proc.poll() is not None:
-                out = proc.stdout.read()
+                log_f.flush()
+                with open(log, "r") as rf:
+                    out = rf.read()
                 say(FAIL, "     The server EXITED immediately. It printed:")
                 for line in out.strip().splitlines()[-8:]:
                     print("        " + line)
@@ -139,7 +146,7 @@ def main():
                 return 1
             try:
                 with urllib.request.urlopen(
-                        f"http://127.0.0.1:{port}/api/health", timeout=3) as r:
+                        f"http://127.0.0.1:{port}/", timeout=3) as r:
                     r.read()
                 up = True
                 break
@@ -185,6 +192,7 @@ def main():
             proc.wait(timeout=10)
         except subprocess.TimeoutExpired:
             proc.kill()
+        log_f.close()
 
     # ------------------------------------------------------------------ verdict
     print()

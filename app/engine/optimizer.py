@@ -115,6 +115,8 @@ def _record(env, design, base):
         "mass_kg": br["mass_kg"],
         "scenario_pass_fraction": None,     # filled in by screen_robustness
         "scenario_headline": None,
+        "stress_pass": None,
+        "stress_total": None,
     }
 
 
@@ -362,6 +364,8 @@ def screen_robustness(env, res, top_n=8, n_scenarios=16, progress=None):
         rec["scenario_pass_fraction"] = st["pass_fraction"]
         rec["scenario_passed"] = st["passed"]
         rec["scenario_n"] = st["n_scenarios"]
+        rec["stress_pass"] = st["passed"]
+        rec["stress_total"] = st["n_scenarios"]
         rec["scenario_headline"] = st["headline"]
         rec["worst_scenario"] = st["worst"]
         screened.append(rec)

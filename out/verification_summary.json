@@ -1,0 +1,156 @@
+{
+  "upper_air": {
+    "points": 408,
+    "max_alt_km": 31.13,
+    "noon": [
+      {
+        "time_local": "2026-10-12T12:00",
+        "pressure_hPa": 1000,
+        "alt_km": 0.11,
+        "temp_C": 29.8,
+        "wind_ms": 7.5,
+        "wind_dir_deg": 45
+      },
+      {
+        "time_local": "2026-10-12T12:00",
+        "pressure_hPa": 925,
+        "alt_km": 0.8,
+        "temp_C": 23.5,
+        "wind_ms": 7.68,
+        "wind_dir_deg": 41
+      },
+      {
+        "time_local": "2026-10-12T12:00",
+        "pressure_hPa": 850,
+        "alt_km": 1.53,
+        "temp_C": 17.3,
+        "wind_ms": 7.34,
+        "wind_dir_deg": 44
+      },
+      {
+        "time_local": "2026-10-12T12:00",
+        "pressure_hPa": 700,
+        "alt_km": 3.17,
+        "temp_C": 10.5,
+        "wind_ms": 2.1,
+        "wind_dir_deg": 81
+      },
+      {
+        "time_local": "2026-10-12T12:00",
+        "pressure_hPa": 600,
+        "alt_km": 4.43,
+        "temp_C": 3.7,
+        "wind_ms": 1.44,
+        "wind_dir_deg": 72
+      },
+      {
+        "time_local": "2026-10-12T12:00",
+        "pressure_hPa": 500,
+        "alt_km": 5.89,
+        "temp_C": -3.5,
+        "wind_ms": 2.33,
+        "wind_dir_deg": 180
+      },
+      {
+        "time_local": "2026-10-12T12:00",
+        "pressure_hPa": 400,
+        "alt_km": 7.62,
+        "temp_C": -14.3,
+        "wind_ms": 1.67,
+        "wind_dir_deg": 143
+      },
+      {
+        "time_local": "2026-10-12T12:00",
+        "pressure_hPa": 300,
+        "alt_km": 9.75,
+        "temp_C": -29.0,
+        "wind_ms": 1.2,
+        "wind_dir_deg": 236
+      },
+      {
+        "time_local": "2026-10-12T12:00",
+        "pressure_hPa": 250,
+        "alt_km": 11.02,
+        "temp_C": -40.0,
+        "wind_ms": 4.45,
+        "wind_dir_deg": 193
+      },
+      {
+        "time_local": "2026-10-12T12:00",
+        "pressure_hPa": 200,
+        "alt_km": 12.5,
+        "temp_C": -52.5,
+        "wind_ms": 3.07,
+        "wind_dir_deg": 139
+      },
+      {
+        "time_local": "2026-10-12T12:00",
+        "pressure_hPa": 150,
+        "alt_km": 14.3,
+        "temp_C": -66.5,
+        "wind_ms": 3.77,
+        "wind_dir_deg": 225
+      },
+      {
+        "time_local": "2026-10-12T12:00",
+        "pressure_hPa": 100,
+        "alt_km": 16.66,
+        "temp_C": -79.5,
+        "wind_ms": 7.36,
+        "wind_dir_deg": 85
+      },
+      {
+        "time_local": "2026-10-12T12:00",
+        "pressure_hPa": 70,
+        "alt_km": 18.7,
+        "temp_C": -73.0,
+        "wind_ms": 3.77,
+        "wind_dir_deg": 45
+      },
+      {
+        "time_local": "2026-10-12T12:00",
+        "pressure_hPa": 50,
+        "alt_km": 20.72,
+        "temp_C": -64.5,
+        "wind_ms": 4.63,
+        "wind_dir_deg": 60
+      },
+      {
+        "time_local": "2026-10-12T12:00",
+        "pressure_hPa": 30,
+        "alt_km": 23.9,
+        "temp_C": -56.5,
+        "wind_ms": 4.53,
+        "wind_dir_deg": 36
+      },
+      {
+        "time_local": "2026-10-12T12:00",
+        "pressure_hPa": 20,
+        "alt_km": 26.5,
+        "temp_C": -51.5,
+        "wind_ms": 3.07,
+        "wind_dir_deg": 229
+      },
+      {
+        "time_local": "2026-10-12T12:00",
+        "pressure_hPa": 10,
+        "alt_km": 31.1,
+        "temp_C": -40.5,
+        "wind_ms": 10.0,
+        "wind_dir_deg": 90
+      }
+    ]
+  },
+  "solar_hist": {
+    "peak_GHI": 829.0
+  },
+  "solar_fc": {
+    "peak_GHI": 866.0
+  },
+  "power_daily": 5.9868,
+  "tle_anchor": "ISS (ZARYA)",
+  "sw": {
+    "flare": "B9.3",
+    "kp": 3.33
+  }
+}

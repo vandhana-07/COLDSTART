@@ -1,0 +1,58 @@
+{
+  "flares": [
+    {
+      "time_tag": "2026-10-12T10:16:00Z",
+      "satellite": 18,
+      "current_class": "B6.6",
+      "current_ratio": 0.004828722239100775,
+      "current_int_xrlong": 0.0006400962010957301,
+      "begin_time": "2026-10-12T07:39:00Z",
+      "begin_class": "B6.3",
+      "max_time": "2026-10-12T07:47:00Z",
+      "max_class": "B9.3",
+      "max_xrlong": 9.377550327371864e-07,
+      "end_time": "2026-10-12T07:51:00Z",
+      "max_ratio_time": "Unk",
+      "max_ratio": null,
+      "end_class": "B7.7"
+    }
+  ],
+  "kp_recent": [
+    {
+      "time_tag": "2026-10-11T15:00:00",
+      "Kp": 2.33,
+      "a_running": 9,
+      "station_count": 8
+    },
+    {
+      "time_tag": "2026-10-11T18:00:00",
+      "Kp": 1.67,
+      "a_running": 6,
+      "station_count": 8
+    },
+    {
+      "time_tag": "2026-10-11T21:00:00",
+      "Kp": 1.67,
+      "a_running": 6,
+      "station_count": 8
+    },
+    {
+      "time_tag": "2026-10-12T00:00:00",
+      "Kp": 1.67,
+      "a_running": 6,
+      "station_count": 8
+    },
+    {
+      "time_tag": "2026-10-12T03:00:00",
+      "Kp": 2.33,
+      "a_running": 9,
+      "station_count": 8
+    },
+    {
+      "time_tag": "2026-10-12T06:00:00",
+      "Kp": 3.33,
+      "a_running": 18,
+      "station_count": 8
+    }
+  ]
+}
