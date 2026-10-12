@@ -1,6 +1,6 @@
 # COLDSTART — physics verification results
 
-Generated: **2026-10-12T06:19:50Z**  
+Generated: **2026-10-12T06:24:49Z**  
 Engine: `coldstart-engine-1.0`  
 Forecast: LIVE  
 
@@ -264,7 +264,7 @@ python3 -m unittest discover -s tests -v
 
 | Design | Verdict | Storage drop | Payload | Heater | PV in | Residual | Pass |
 |---|---|---|---|---|---|---|---|
-| baseline_default | FAIL | 43.5583 | 18.7250 | 24.8333 | 0.0000 | +0.000e+00 | yes |
+| baseline_default | FAIL | 43.3917 | 18.7250 | 24.6667 | 0.0000 | +0.000e+00 | yes |
 | cheapest_passing | PASS | 41.2750 | 41.2750 | 0.0000 | 0.0000 | +0.000e+00 | yes |
 | most_robust | PASS | 15.8199 | 41.2750 | 0.0000 | 25.4551 | +0.000e+00 | yes |
 
@@ -334,17 +334,17 @@ The capacity-vs-temperature curve is an ASSUMPTION. It is shaped like commonly p
 
 | dt (s) | Verdict | Failure | ΔT_min vs finest (°C) | Δfinal charge vs finest (Wh) | Δfailure time vs finest (min) |
 |---|---|---|---|---|---|
-| 60 | FAIL | 00:14 | -0.2000 | +0.17800 | -1.42 |
-| 30 | FAIL | 00:14 | +0.0000 | +0.20300 | -1.42 |
-| 10 | FAIL | 00:15 | +0.0000 | +0.07200 | -0.42 |
-| 5 | FAIL | 00:15 | +0.0000 | +0.00000 | 0.0 |
+| 60 | FAIL | 00:14 | -0.2000 | +0.28400 | -2.17 |
+| 30 | FAIL | 00:14 | +0.0000 | +0.30900 | -2.17 |
+| 10 | FAIL | 00:15 | +0.0000 | +0.05400 | -0.33 |
+| 5 | FAIL | 00:16 | +0.0000 | +0.00000 | 0.0 |
 
 - Verdict stable across all timesteps: **yes**
 - Failure reason stable: **yes**
-- Failure-time spread: **1.42 min**
+- Failure-time spread: **2.17 min**
 - Min-temperature spread: **0.2000 °C**
 - Worst min-temperature change vs the 5 s reference: **0.2000 °C**
-- Observed order of convergence: **1.42** (first-order expected for forward Euler; per-halving values [2.725, 0.123])
+- Observed order of convergence: **1.43** (first-order expected for forward Euler; per-halving values [2.682, 0.172])
 
 ### cheapest_passing
 
@@ -360,7 +360,7 @@ The capacity-vs-temperature curve is an ASSUMPTION. It is shaped like commonly p
 - Failure-time spread: **0.00 min**
 - Min-temperature spread: **0.0000 °C**
 - Worst min-temperature change vs the 5 s reference: **0.0000 °C**
-- Observed order of convergence: **1.77** (first-order expected for forward Euler; per-halving values [1.302, 2.245])
+- Observed order of convergence: **1.69** (first-order expected for forward Euler; per-halving values [1.23, 2.156])
 
 ## Task 6 — parameter uncertainty `[D]`
 
@@ -382,23 +382,23 @@ The capacity-vs-temperature curve is an ASSUMPTION. It is shaped like commonly p
 | Insulation conductivity | 0.036 | FAIL ENERGY_DEPLETED @ 00:14 | PASS @ — | PASS @ — |
 | Insulation conductivity | 0.045 | FAIL ENERGY_DEPLETED @ 00:14 | PASS @ — | PASS @ — |
 | Battery capacity multiplier | 1.0 | FAIL ENERGY_DEPLETED @ 00:14 | PASS @ — | PASS @ — |
-| Battery capacity multiplier | 0.9 | FAIL ENERGY_DEPLETED @ 23:42 | PASS @ — | PASS @ — |
-| Battery capacity multiplier | 0.8 | FAIL ENERGY_DEPLETED @ 23:09 | PASS @ — | PASS @ — |
-| Battery capacity multiplier | 0.7 | FAIL ENERGY_DEPLETED @ 22:34 | FAIL ENERGY_DEPLETED @ 07:22 | PASS @ — |
+| Battery capacity multiplier | 0.9 | FAIL ENERGY_DEPLETED @ 23:41 | PASS @ — | PASS @ — |
+| Battery capacity multiplier | 0.8 | FAIL ENERGY_DEPLETED @ 23:08 | PASS @ — | PASS @ — |
+| Battery capacity multiplier | 0.7 | FAIL ENERGY_DEPLETED @ 22:35 | FAIL ENERGY_DEPLETED @ 07:23 | PASS @ — |
 | Battery capacity multiplier | 0.6 | FAIL ENERGY_DEPLETED @ 22:02 | FAIL ENERGY_DEPLETED @ 05:41 | PASS @ — |
-| Radiant temperature offset | 20.0 | FAIL ENERGY_DEPLETED @ 23:50 | PASS @ — | PASS @ — |
-| Radiant temperature offset | 15.0 | FAIL ENERGY_DEPLETED @ 00:04 | PASS @ — | PASS @ — |
+| Radiant temperature offset | 20.0 | FAIL TEMP_BELOW_OPERATING @ 19:38 | PASS @ — | PASS @ — |
+| Radiant temperature offset | 15.0 | FAIL ENERGY_DEPLETED @ 00:06 | PASS @ — | PASS @ — |
 | Radiant temperature offset | 10.0 | FAIL ENERGY_DEPLETED @ 00:14 | PASS @ — | PASS @ — |
-| Radiant temperature offset | 5.0 | FAIL ENERGY_DEPLETED @ 00:28 | PASS @ — | PASS @ — |
-| Radiant temperature offset | 0.0 | FAIL ENERGY_DEPLETED @ 00:45 | PASS @ — | PASS @ — |
+| Radiant temperature offset | 5.0 | FAIL ENERGY_DEPLETED @ 00:30 | PASS @ — | PASS @ — |
+| Radiant temperature offset | 0.0 | FAIL ENERGY_DEPLETED @ 00:48 | PASS @ — | PASS @ — |
 
 ### Combined worst case
 
 | Design | Verdict | Failure | Time | Min T (°C) | Margin |
 |---|---|---|---|---|---|
-| baseline_default | FAIL | TEMP_BELOW_OPERATING | 19:16 | -20.9 | 4.80 |
-| cheapest_passing | FAIL | ENERGY_DEPLETED | 02:24 | -12.8 | 0.99 |
-| most_robust | FAIL | ENERGY_DEPLETED | 07:05 | -10.7 | 0.99 |
+| baseline_default | FAIL | TEMP_BELOW_OPERATING | 19:16 | -20.9 | 4.79 |
+| cheapest_passing | FAIL | ENERGY_DEPLETED | 02:24 | -12.9 | 0.99 |
+| most_robust | FAIL | ENERGY_DEPLETED | 07:06 | -10.6 | 1.00 |
 
 **Ranking is NOT stable.** The following combinations invert the cost/robustness ordering:
 

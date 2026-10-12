@@ -77,6 +77,21 @@ def radiant_temperature_c(t_ambient_c, radiant_offset_c=P.DEFAULT_RADIANT_OFFSET
     `radiant_offset_c` colder than the air. It is exposed to the user and is a
     named axis of the stress-test engine -- it is the dominant radiative
     uncertainty and we say so rather than hiding it in a constant.
+
+    WHAT IT STANDS IN FOR (audit C3) - there is NO explicit Earth-infrared term
+    and NO view factor anywhere in the model; this single offset covers both.
+    First-order estimate of what that hides, at 26 km:
+      - the horizon dip is 5.17 deg, so the Earth fills about 55% of the view and
+        deep space the remaining 45%;
+      - for an outgoing longwave of 200-260 W/m2 (a published night range), the
+        Earth's effective radiating temperature is 244-260 K;
+      - the view-weighted sink is therefore ~209-225 K, i.e. between roughly
+        -3 K and +12 K relative to a -52 C air temperature.
+    The default of +10 K (see DEFAULT_RADIANT_OFFSET_C) therefore sits at the
+    cold, loss-overestimating end of that estimate, which is the conservative
+    direction for a cold-survival question. T_SPACE_K is a floor inside
+    _radiation_from_skin_w and does NOT bind at float conditions - the sink is
+    never treated as deep space. Both are pinned by tests/test_radiation.py.
     """
     return min(t_ambient_c - radiant_offset_c, t_ambient_c)
 

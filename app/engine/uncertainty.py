@@ -67,10 +67,29 @@ UNCERTAIN_INPUTS = {
         "note": "Panel angle, dirt and partial shading can remove generation "
                 "entirely. 0x is a total-loss case.",
     },
+    "radiant_offset_c": {
+        "label": "Radiative sink temperature",
+        "lo": 0.0, "hi": 20.0, "unit": "K",
+        # ASSUMPTION: the sink is parameterised as (air temperature - offset), so
+        # positive = colder sink = more heat lost. Added under audit finding C2:
+        # thermal.py has always CLAIMED this parameter was a stress-test axis, but
+        # it was absent here, so the dominant radiative uncertainty was neither
+        # stressed nor ranked. It was already swept in verify.py Task 6 with
+        # exactly this range, so that range is reused rather than a new one
+        # invented. Plausible range from a view-factor estimate at 26 km: the
+        # Earth fills ~55% of the view at a 5.17 deg horizon dip, and an outgoing
+        # longwave of 200-260 W/m2 puts the effective sink at 209-225 K, i.e.
+        # +12 K to -3 K against a -52 C air temperature. That estimate reaches a
+        # little below this range's floor of 0 K; extending it is a deliberate
+        # open question, not an oversight.
+        "note": "ASSUMPTION, not measured. No explicit Earth-infrared term and no "
+                "view factor exist in the model; this offset stands in for both. "
+                "0 K = sink as warm as the air, 20 K = sink far colder.",
+    },
 }
 
 HALTON_BASES = {"ambient_delta_c": 2, "k_ins_mult": 3, "capacity_mult": 5,
-                "payload_mult": 7, "solar_mult": 11}
+                "payload_mult": 7, "solar_mult": 11, "radiant_offset_c": 13}
 
 
 def _halton(index, base):
@@ -110,6 +129,13 @@ def _apply(env, design, factors):
     # array: the forecast array is surface GHI and the engine deliberately does
     # not use it at altitude (audit A1).
     d["solar_derate"] = factors.get("solar_mult", 1.0)
+
+    # Radiative sink offset (audit C2). Declaring the axis is not enough: an axis
+    # that is sampled but never written into the design is a silent no-op that
+    # leaves every scenario identical to the nominal case.
+    d["radiant_offset_c"] = factors.get("radiant_offset_c",
+                                        design.get("radiant_offset_c",
+                                                   P.DEFAULT_RADIANT_OFFSET_C))
 
     return new_env, d
 
