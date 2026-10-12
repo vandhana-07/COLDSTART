@@ -398,13 +398,51 @@ class UncertaintyDiscipline(unittest.TestCase):
 class UnresolvedDisclosure(unittest.TestCase):
     """The project must keep stating what it has NOT done."""
 
+    SOLAR_SENTENCE = ("Solar heating of the enclosure is not modelled; daytime "
+                      "results are biased cold. Night survival results are "
+                      "unaffected.")
+
+    @staticmethod
+    def _flatten(src):
+        """Normalise Python source so a sentence split across implicit string
+        concatenation still matches. Removing quote characters first is what
+        makes 'abc ' 'def' equal to 'abc def'."""
+        return " ".join(src.replace('"', " ").replace("'", " ").split())
+
     def test_solar_structural_heating_gap_is_disclosed(self):
-        """The engine models solar ELECTRICAL generation only. Sunlit structure
-        heating is not modelled; that must stay visible."""
+        """Audit Task D. The engine models solar ELECTRICAL generation only;
+        sunlit structure heating is not modelled. The exact sentence is required
+        so the disclosure cannot be softened into vagueness."""
         import verify as vf
         import inspect
-        src = inspect.getsource(vf.main)
-        self.assertIn("SOLAR HEATING OF THE STRUCTURE IS NOT MODELLED", src)
+        src = self._flatten(inspect.getsource(vf.main))
+        self.assertIn(self.SOLAR_SENTENCE, src,
+                      "the Verification tab disclosure changed wording")
+        self.assertIn("ELECTRICAL", src,
+                      "the reason (electrical-only PV) must stay stated")
+
+    def test_export_report_carries_the_same_disclosure(self):
+        """Audit Task D. The Export report must carry the same sentence."""
+        import server
+        import inspect
+        src = self._flatten(inspect.getsource(server.build_report))
+        self.assertIn(self.SOLAR_SENTENCE, src,
+                      "the Export report lost the solar-heating disclosure")
+
+    def test_the_wording_reaches_the_verification_data_the_ui_renders(self):
+        """The Verification tab renders verify/results.json['unresolved'].
+        Stating it in verify.py is not enough - it has to survive the export."""
+        import json
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "verify", "results.json")
+        if not os.path.exists(path):
+            self.skipTest("verify/results.json not generated yet")
+        with open(path) as fh:
+            data = json.load(fh)
+        blob = self._flatten(" ".join(data.get("unresolved", [])))
+        self.assertIn(self.SOLAR_SENTENCE, blob,
+                      "verify/results.json is stale: re-run python app/verify.py")
 
     def test_unvalidated_ua_is_disclosed(self):
         import verify as vf

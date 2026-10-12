@@ -358,6 +358,9 @@ def build_report(env, design, optimiser=None, stress=None, battle_result=None):
         "assumptions": P.as_dict() if hasattr(P, "as_dict") else {},
         "verification": _verification_summary(),
         "limitations": [
+            # Wording required by the audit (Task D); asserted by tests/test_verification.py.
+            "Solar heating of the enclosure is not modelled; daytime results are "
+            "biased cold. Night survival results are unaffected.",
             "Box conductance UA is derived from an assumed foam conductivity and has "
             "NOT been measured on a bench rig. Treat absolute survival times as "
             "indicative and the comparison between designs as the reliable result.",

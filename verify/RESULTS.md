@@ -1,6 +1,6 @@
 # COLDSTART — physics verification results
 
-Generated: **2026-10-12T06:24:49Z**  
+Generated: **2026-10-12T06:35:37Z**  
 Engine: `coldstart-engine-1.0`  
 Forecast: LIVE  
 
@@ -414,7 +414,7 @@ The capacity-vs-temperature curve is an ASSUMPTION. It is shaped like commonly p
 - Box thermal conductance UA is UNVALIDATED. It derives from an assumed conductivity and an assumed geometry; no bench measurement exists.
 - The battery capacity-vs-temperature curve is an ASSUMPTION. No specific cell datasheet is attached and no cell was tested.
 - The radiant temperature offset is a single parameter standing in for full view-factor geometry. It is the largest uncertainty in the loss path.
-- SOLAR HEATING OF THE STRUCTURE IS NOT MODELLED. The model computes solar ELECTRICAL generation only. A sunlit payload is not warmed in this model, so daytime scenarios are biased cold.
+- Solar heating of the enclosure is not modelled; daytime results are biased cold. Night survival results are unaffected. The model computes solar ELECTRICAL generation only, so a sunlit payload is never warmed.
 - The engine's ISA is isothermal above 11 km and therefore diverges from the published standard atmosphere above about 20 km (see benchmark B1).
 - Thermal residual in the energy balance is an identity for forward Euler and is not an accuracy measure; real truncation error is quantified in Tasks 1 and 4.
 - Overheating failure mode is modelled but has never been observed in flight.

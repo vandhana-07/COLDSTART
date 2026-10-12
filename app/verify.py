@@ -817,9 +817,11 @@ def main():
         "datasheet is attached and no cell was tested.",
         "The radiant temperature offset is a single parameter standing in for full "
         "view-factor geometry. It is the largest uncertainty in the loss path.",
-        "SOLAR HEATING OF THE STRUCTURE IS NOT MODELLED. The model computes solar "
-        "ELECTRICAL generation only. A sunlit payload is not warmed in this model, so "
-        "daytime scenarios are biased cold.",
+        # Wording required by the audit (Task D). Keep the sentence intact: it is
+        # asserted by tests/test_verification.py so it cannot be softened away.
+        "Solar heating of the enclosure is not modelled; daytime results are "
+        "biased cold. Night survival results are unaffected. The model computes "
+        "solar ELECTRICAL generation only, so a sunlit payload is never warmed.",
         "The engine's ISA is isothermal above 11 km and therefore diverges from the "
         "published standard atmosphere above about 20 km (see benchmark B1).",
         "Thermal residual in the energy balance is an identity for forward Euler and is "
