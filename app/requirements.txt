@@ -1,0 +1,3 @@
+# COLDSTART needs NOTHING installed.
+# It uses only the Python standard library on purpose, so it runs on venue wifi
+# that has no internet for pip. Just run:  python3 server.py

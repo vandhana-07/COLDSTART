@@ -1,0 +1,1522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>COLDSTART — flight survival &amp; design search</title>
+<style>
+  /* ---------------------------------------------------------------------
+     Dark aerospace palette. Restrained on purpose: deep navy/charcoal with
+     blue/cyan accents. No animation beyond state feedback, no 3D, no
+     decorative charts. Colour is never the ONLY signal for pass/fail --
+     every coloured state also carries a glyph and a word.
+     --------------------------------------------------------------------- */
+  :root{
+    --bg:#0a0f16; --panel:#111823; --panel2:#0d141d; --line:#1e2c3d;
+    --line2:#27394f; --txt:#dce6f2; --dim:#8fa3ba;
+    --dim2:#5f738a; --accent:#38bdf8; --accent2:#22d3ee;
+    --ok:#34d399; --bad:#f87171; --warn:#fbbf24; --info:#818cf8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--txt);
+    font:14px/1.5 ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent)}
+  h1,h2,h3{margin:0;font-weight:600;letter-spacing:.02em}
+  h1{font-size:18px}
+  h2{font-size:15px;color:var(--accent)}
+  h3{font-size:13px;color:var(--dim);text-transform:uppercase;letter-spacing:.09em}
+
+  /* ---------- layout ---------- */
+  header{
+    border-bottom:1px solid var(--line); background:linear-gradient(180deg,#0d1520,#0a0f16);
+    padding:14px 20px; display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+    position:sticky; top:0; z-index:20;
+  }
+  .logo{display:flex;align-items:center;gap:10px}
+  .logo .mark{width:26px;height:26px;flex:0 0 26px}
+  .tagline{color:var(--dim2);font-size:12px}
+  nav{margin-left:auto;display:flex;gap:2px;flex-wrap:wrap}
+  nav button{
+    background:transparent;border:1px solid transparent;color:var(--dim);
+    padding:7px 12px;border-radius:5px;cursor:pointer;font:inherit;font-size:12.5px;
+  }
+  nav button:hover{color:var(--txt);background:#16202c}
+  nav button[aria-selected=true]{
+    color:#04121c;background:var(--accent2);border-color:var(--accent2);font-weight:600;
+  }
+  main{padding:20px;max-width:1500px;margin:0 auto}
+  .grid{display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start}
+  @media (max-width:1000px){.grid{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:16px}
+  .panel.tight{padding:12px}
+  section[hidden]{display:none !important}
+
+  /* ---------- controls ---------- */
+  label.f{display:block;margin-bottom:12px}
+  label.f .lab{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+  label.f .lab span:first-child{color:var(--dim);font-size:12px}
+  label.f .val{color:var(--accent2);font-size:12.5px;font-weight:600}
+  input[type=range]{width:100%;accent-color:var(--accent2);height:18px}
+  input[type=number],input[type=date],select{
+    width:100%;background:var(--panel2);border:1px solid var(--line2);color:var(--txt);
+    padding:7px 9px;border-radius:5px;font:inherit;font-size:13px;
+  }
+  input:focus,select:focus{outline:1px solid var(--accent2);border-color:var(--accent2)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  button.act{
+    background:var(--accent2);color:#04121c;border:none;padding:10px 16px;border-radius:6px;
+    font:inherit;font-weight:700;cursor:pointer;font-size:13px;
+  }
+  button.act:hover{filter:brightness(1.1)}
+  button.act:disabled{opacity:.45;cursor:not-allowed}
+  button.ghost{
+    background:transparent;color:var(--dim);border:1px solid var(--line2);
+    padding:8px 12px;border-radius:6px;font:inherit;cursor:pointer;font-size:12.5px;
+  }
+  button.ghost:hover{color:var(--txt);border-color:var(--accent)}
+  .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+
+  /* ---------- verdict: glyph + word + colour, never colour alone ---------- */
+  .verdict{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:8px;border:1px solid}
+  .verdict .glyph{font-size:26px;line-height:1}
+  .verdict .word{font-size:19px;font-weight:700;letter-spacing:.06em}
+  .verdict .sub{color:var(--dim);font-size:12.5px}
+  .v-pass{border-color:#1d5c46;background:#0c1f19}
+  .v-pass .word{color:var(--ok)}
+  .v-fail{border-color:#6b2b2b;background:#1e1113}
+  .v-fail .word{color:var(--bad)}
+  .v-insuf{border-color:#6b5720;background:#1d180c}
+  .v-insuf .word{color:var(--warn)}
+
+  /* ---------- kpis ---------- */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .kpi{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+  .kpi .k{color:var(--dim2);font-size:11px;text-transform:uppercase;letter-spacing:.07em}
+  .kpi .v{font-size:19px;font-weight:700;margin-top:3px}
+  .kpi .n{color:var(--dim2);font-size:11px;margin-top:2px}
+
+  /* ---------- tables ---------- */
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line)}
+  th{color:var(--dim2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+  tr.win{background:#0d2620}
+  tr.lose{background:#1c1214}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .pill{display:inline-block;padding:1px 7px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid}
+  .p-pass{color:var(--ok);border-color:#1d5c46;background:#0c1f19}
+  .p-fail{color:var(--bad);border-color:#6b2b2b;background:#1e1113}
+  .p-warn{color:var(--warn);border-color:#6b5720;background:#1d180c}
+  .p-info{color:var(--accent);border-color:#1c4a63;background:#0c1a24}
+
+  /* ---------- transparency ---------- */
+  .trans{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+  .trans .cell{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:9px 11px}
+  .trans .cell .k{color:var(--dim2);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em}
+  .trans .cell .v{font-size:12.5px;margin-top:3px;word-break:break-word}
+  .banner{border-left:3px solid;padding:10px 14px;border-radius:0 6px 6px 0;margin-bottom:12px;font-size:13px}
+  .b-live{border-color:var(--ok);background:#0c1f19}
+  .b-cache{border-color:var(--warn);background:#1d180c}
+  .b-isa{border-color:var(--bad);background:#1e1113}
+
+  /* ---------- timeline ---------- */
+  .chartbox{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:8px;overflow:hidden}
+  svg.chart{display:block;width:100%;height:auto}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin:9px 0 3px;font-size:11.5px;color:var(--dim)}
+  .legend i{display:inline-block;width:15px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+  .scrub{margin-top:10px}
+  .readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:9px}
+  .readout div{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:7px 9px}
+  .readout .k{color:var(--dim2);font-size:10.5px;text-transform:uppercase}
+  .readout .v{font-size:14px;font-weight:600}
+  .failmark{fill:none;stroke:var(--bad);stroke-width:1.4;stroke-dasharray:4 3}
+
+  /* ---------- chronology ---------- */
+  ol.chrono{list-style:none;padding:0;margin:0;counter-reset:c}
+  ol.chrono li{position:relative;padding:8px 0 8px 30px;border-left:1px solid var(--line2);margin-left:8px}
+  ol.chrono li:before{
+    counter-increment:c;content:counter(c);position:absolute;left:-9px;top:9px;
+    width:17px;height:17px;border-radius:50%;background:var(--panel2);
+    border:1px solid var(--line2);color:var(--dim);font-size:10px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  ol.chrono li.last{border-left-color:var(--bad)}
+  ol.chrono li.last:before{background:#1e1113;border-color:var(--bad);color:var(--bad)}
+  ul.plain{margin:6px 0;padding-left:18px}
+  ul.plain li{margin:4px 0}
+  .note{color:var(--dim2);font-size:11.5px;line-height:1.55}
+  .prog{height:5px;background:var(--panel2);border-radius:3px;overflow:hidden;margin:8px 0}
+  .prog i{display:block;height:100%;background:var(--accent2);width:0;transition:width .2s}
+  .empty{color:var(--dim2);text-align:center;padding:34px 12px;font-size:13px}
+  .flag{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10.5px;font-weight:700;letter-spacing:.05em}
+  .fl-live{background:#0c1f19;color:var(--ok);border:1px solid #1d5c46}
+  .fl-cached{background:#1d180c;color:var(--warn);border:1px solid #6b5720}
+  .fl-isa{background:#1e1113;color:var(--bad);border:1px solid #6b2b2b}
+  .fl-assume{background:#0c1a24;color:var(--accent);border:1px solid #1c4a63}
+  hr{border:none;border-top:1px solid var(--line);margin:14px 0}
+  code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:12px;color:var(--accent2)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+      <circle cx="16" cy="16" r="13" fill="none" stroke="#38bdf8" stroke-width="1.2" opacity=".55"/>
+      <path d="M16 5 C11 12 11 20 16 27 C21 20 21 12 16 5 Z" fill="none" stroke="#22d3ee" stroke-width="1.6"/>
+      <circle cx="16" cy="16" r="3.4" fill="#22d3ee"/>
+    </svg>
+    <div>
+      <h1>COLDSTART</h1>
+      <div class="tagline">Will the payload survive the cold dark? &middot; powered by a real GFS forecast</div>
+    </div>
+  </div>
+  <nav id="nav" role="tablist">
+    <button role="tab" data-tab="run" aria-selected="true">1 Configure &amp; Run</button>
+    <button role="tab" data-tab="inspect">2 Inspect</button>
+    <button role="tab" data-tab="optimize">3 Optimize</button>
+    <button role="tab" data-tab="stress">4 Stress-Test</button>
+    <button role="tab" data-tab="battle">5 Design Battle</button>
+    <button role="tab" data-tab="export">6 Export</button>
+    <button role="tab" data-tab="verify">7 Verification</button>
+  </nav>
+</header>
+
+<main>
+
+<!-- ============================ 1. RUN ============================ -->
+<section id="tab-run">
+  <div class="grid">
+    <div>
+      <div class="panel">
+        <h2>Mission</h2>
+        <p class="note">Real forecast data for this site and date. Nothing here is invented; if the network fails the source is labelled CACHED.</p>
+        <div class="row">
+          <label class="f"><span class="lab"><span>Date</span></span>
+            <input type="date" id="c-date"></label>
+          <label class="f"><span class="lab"><span>Launch (local)</span></span>
+            <input type="number" id="c-hour" min="0" max="23" value="18"></label>
+        </div>
+        <label class="f"><span class="lab"><span>Latitude</span><span class="val" id="v-lat">13.0067</span></span>
+          <input type="range" id="c-lat" min="-60" max="60" step="0.0001" value="13.0067"></label>
+        <label class="f"><span class="lab"><span>Longitude</span><span class="val" id="v-lon">80.2570</span></span>
+          <input type="range" id="c-lon" min="-180" max="180" step="0.0001" value="80.2570"></label>
+        <p class="note">Default: Rajalakshmi Engineering College, Chennai (13.0067 N, 80.2570 E).</p>
+      </div>
+
+      <div class="panel">
+        <h2>Design</h2>
+        <label class="f"><span class="lab"><span>Cells (18650)</span><span class="val" id="v-cells">6</span></span>
+          <input type="range" id="c-cells" min="2" max="16" step="1" value="6"></label>
+        <label class="f"><span class="lab"><span>Insulation thickness</span><span class="val" id="v-ins">10 mm</span></span>
+          <input type="range" id="c-ins" min="0" max="100" step="5" value="10"></label>
+        <label class="f"><span class="lab"><span>Heater setpoint</span><span class="val" id="v-sp">-10 &deg;C</span></span>
+          <input type="range" id="c-sp" min="-1" max="10" step="1" value="0"></label>
+        <p class="note" id="sp-note">Slide fully left = heater OFF.</p>
+        <label class="f"><span class="lab"><span>Heater maximum power</span><span class="val" id="v-hp">5.0 W</span></span>
+          <input type="range" id="c-hp" min="0" max="15" step="0.5" value="5"></label>
+        <label class="f"><span class="lab"><span>Payload electrical load</span><span class="val" id="v-load">3.0 W</span></span>
+          <input type="range" id="c-load" min="0" max="10" step="0.5" value="3"></label>
+        <label class="f"><span class="lab"><span>Solar panel area</span><span class="val" id="v-pan">0.00 m&sup2;</span></span>
+          <input type="range" id="c-pan" min="0" max="0.25" step="0.005" value="0"></label>
+        <details>
+          <summary class="note" style="cursor:pointer">Advanced: insulation material &amp; operating limits</summary>
+          <label class="f" style="margin-top:10px"><span class="lab"><span>Material</span></span>
+            <select id="c-mat">
+              <option value="0.030">XPS foam — k = 0.030 W/m&middot;K (default)</option>
+              <option value="0.018">Aerogel blanket — k = 0.018 W/m&middot;K</option>
+              <option value="0.035">Thermocol — k = 0.035 W/m&middot;K</option>
+            </select></label>
+          <label class="f"><span class="lab"><span>Minimum operating temp</span><span class="val" id="v-minop">-20 &deg;C</span></span>
+            <input type="range" id="c-minop" min="-40" max="0" step="1" value="-20"></label>
+          <p class="note">Cell capacity falls with temperature; below the minimum the pack cannot supply current at all.</p>
+        </details>
+        <div class="btnrow">
+          <button class="act" id="b-run">Run flight simulation</button>
+          <button class="ghost" id="b-reset">Reset to default</button>
+        </div>
+        <div class="prog" id="run-prog" hidden><i></i></div>
+        <div class="note" id="run-status"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel" id="run-result">
+        <div class="empty">Set a design and press <b>Run flight simulation</b>.<br>
+          <span class="note">The engine integrates the flight minute by minute at a timestep derived from the thermal time constant.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 2. INSPECT ============================ -->
+<section id="tab-inspect" hidden>
+  <div class="panel">
+    <h2>Temperature &amp; energy timeline</h2>
+    <div class="legend">
+      <span><i style="background:#f87171"></i>Battery / box temperature</span>
+      <span><i style="background:#8fa3ba"></i>Ambient at altitude</span>
+      <span><i style="background:#fbbf24"></i>Operating limit</span>
+      <span><i style="background:#38bdf8"></i>Charge (usable %)</span>
+      <span><i style="background:#34d399"></i>Altitude</span>
+    </div>
+    <div class="chartbox"><svg class="chart" id="chart-temp" viewBox="0 0 900 300" role="img"
+      aria-label="Battery temperature, ambient temperature and operating limit over the flight"></svg></div>
+    <div class="chartbox" style="margin-top:10px"><svg class="chart" id="chart-energy" viewBox="0 0 900 210" role="img"
+      aria-label="Usable charge and altitude over the flight"></svg></div>
+    <label class="f scrub"><span class="lab"><span>Scrub the flight</span><span class="val" id="v-scrub">T+0 min</span></span>
+      <input type="range" id="c-scrub" min="0" max="100" value="0"></label>
+    <div class="btnrow">
+      <button class="ghost" id="b-play">&#9654; Play</button>
+      <button class="ghost" id="b-pause">&#10073;&#10073; Pause</button>
+      <button class="ghost" id="b-fail">Jump to failure</button>
+    </div>
+    <div class="readout" id="scrub-readout"></div>
+    <p class="note" id="tl-note"></p>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>Why it ended the way it did</h2>
+      <div id="replay"></div>
+    </div>
+    <div class="panel">
+      <h2>What this run depends on</h2>
+      <div id="inspect-trans"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 3. OPTIMIZE ============================ -->
+<section id="tab-optimize" hidden>
+  <div class="panel">
+    <h2>Search the design space</h2>
+    <p class="note">Every candidate is pushed through the <b>same</b> simulation engine. No surrogate model,
+      no scoring shortcut. The search is a declared grid plus a local refinement — it does not prove global
+      optimality, and the limits are printed below the results.</p>
+    <div class="row" style="max-width:560px">
+      <label class="f"><span class="lab"><span>Objective</span></span>
+        <select id="c-obj">
+          <option value="best_balance">Best balance of cost, mass, margin</option>
+          <option value="lowest_cost">Lowest cost</option>
+          <option value="lowest_mass">Lowest mass</option>
+          <option value="highest_margin">Highest energy margin</option>
+          <option value="most_robust">Most robust (survives widest stress)</option>
+        </select></label>
+      <label class="f"><span class="lab"><span>Stress scenarios per screened candidate</span></span>
+        <select id="c-scen"><option value="12">12 (fast)</option><option value="16" selected>16</option><option value="24">24 (slower, stronger)</option></select></label>
+    </div>
+    <button class="act" id="b-opt">Run search</button>
+    <div class="prog" id="opt-prog" hidden><i></i></div>
+    <div class="note" id="opt-status"></div>
+  </div>
+  <div id="opt-result"></div>
+</section>
+
+<!-- ============================ 4. STRESS ============================ -->
+<section id="tab-stress" hidden>
+  <div class="panel">
+    <h2>Stress test</h2>
+    <p class="note">The design is re-simulated many times with its uncertain inputs pushed around.
+      A deterministic Halton lattice is used, so the same inputs always give the same answer.</p>
+    <div class="row" style="max-width:420px">
+      <label class="f"><span class="lab"><span>Scenarios</span></span>
+        <select id="c-nscen"><option value="16">16</option><option value="32" selected>32</option><option value="64">64</option></select></label>
+      <label class="f"><span class="lab"><span>Apply to</span></span>
+        <select id="c-stress-target"></select></label>
+    </div>
+    <button class="act" id="b-stress">Run stress test</button>
+    <div class="prog" id="stress-prog" hidden><i></i></div>
+    <div class="note" id="stress-status"></div>
+  </div>
+  <div id="stress-result"><div class="empty">Run a flight first, then stress-test it here.</div></div>
+</section>
+
+<!-- ============================ 5. BATTLE ============================ -->
+<section id="tab-battle" hidden>
+  <div class="panel">
+    <h2>Design Battle</h2>
+    <p class="note">Four design philosophies, identical forecast, identical engine. The only difference is the design.</p>
+    <button class="act" id="b-battle">Run battle</button>
+    <div class="prog" id="battle-prog" hidden><i></i></div>
+    <div class="note" id="battle-status"></div>
+    <div class="note" id="battle-status"></div>
+  </div>
+  <div id="battle-result"><div class="empty">Run a flight first — the battle uses the optimiser and your current design.</div></div>
+</section>
+
+<!-- ============================ 6. EXPORT ============================ -->
+<section id="tab-export" hidden>
+  <div class="panel">
+    <h2>Flight-readiness report</h2>
+    <p class="note">Everything needed to reproduce and audit this run: the mission, the data provenance,
+      the design, the results, the methodology and the limitations.</p>
+    <div class="btnrow">
+      <button class="act" id="b-report">Build report</button>
+      <button class="ghost" id="b-report-json" disabled>Download JSON</button>
+      <button class="ghost" id="b-report-print" disabled>Print / save as PDF</button>
+    </div>
+  </div>
+  <div id="report-result"><div class="empty">Run a flight first.</div></div>
+</section>
+
+<!-- ============================ 7. VERIFICATION ============================ -->
+<section id="tab-verify" hidden>
+  <div class="panel">
+    <h2>Physics verification</h2>
+    <p class="note">How we know the numbers are right without a laboratory. Every result carries an
+      evidence category, and the category that would require hardware is declared empty.</p>
+    <div class="btnrow">
+      <button class="act" id="b-verify">Load verification results</button>
+      <button class="ghost" id="b-verify-dl">Download results.json</button>
+    </div>
+    <div class="note" id="verify-status"></div>
+  </div>
+  <div id="verify-result"><div class="empty">Press <b>Load verification results</b>.<br>
+    <span class="note">Generated by <code>python3 app/verify.py</code> — a real run, not a mock.</span></div></div>
+</section>
+
+</main>
+
+<script>
+"use strict";
+
+/* =====================================================================
+   State
+   ===================================================================== */
+const S = {
+  run: null,        // /api/plan payload
+  transparency: null,
+  optimiser: null,
+  stress: null,
+  battle: null,
+  report: null,
+  scrubbing: false,
+  playTimer: null,
+};
+
+const $ = id => document.getElementById(id);
+const fmt = (v, d = 1) => (v === null || v === undefined || Number.isNaN(v)) ? "—" : Number(v).toFixed(d);
+const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
+const esc = s => String(s === null || s === undefined ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+/* =====================================================================
+   Tabs
+   ===================================================================== */
+$("nav").addEventListener("click", e => {
+  const b = e.target.closest("button[data-tab]");
+  if (!b) return;
+  document.querySelectorAll("#nav button").forEach(x => x.setAttribute("aria-selected", x === b));
+  document.querySelectorAll("section").forEach(s => { s.hidden = true; });
+  $("tab-" + b.dataset.tab).hidden = false;
+  if (b.dataset.tab === "inspect") drawInspect();
+});
+const goTab = name => {
+  const b = document.querySelector(`#nav button[data-tab="${name}"]`);
+  if (b) b.click();
+};
+
+/* =====================================================================
+   Controls
+   ===================================================================== */
+const ctrls = {
+  cells: { id: "c-cells", out: "v-cells", fmt: v => v },
+  ins: { id: "c-ins", out: "v-ins", fmt: v => v + " mm" },
+  sp: { id: "c-sp", out: "v-sp", fmt: v => (v <= -1 ? "OFF" : "+" + v + " °C") },
+  hp: { id: "c-hp", out: "v-hp", fmt: v => Number(v).toFixed(1) + " W" },
+  load: { id: "c-load", out: "v-load", fmt: v => Number(v).toFixed(1) + " W" },
+  pan: { id: "c-pan", out: "v-pan", fmt: v => Number(v).toFixed(3) + " m²" },
+  lat: { id: "c-lat", out: "v-lat", fmt: v => Number(v).toFixed(4) },
+  lon: { id: "c-lon", out: "v-lon", fmt: v => Number(v).toFixed(4) },
+  minop: { id: "c-minop", out: "v-minop", fmt: v => v + " °C" },
+};
+function syncCtrls() {
+  for (const k in ctrls) {
+    const c = ctrls[k], i = $(c.id), o = $(c.out);
+    if (!i || !o) continue;
+    const paint = () => { o.textContent = c.fmt(i.value); };
+    i.addEventListener("input", paint); paint();
+  }
+}
+function setpointValue() {
+  const v = parseInt($("c-sp").value, 10);
+  return v <= -1 ? "none" : String(v);
+}
+function designQuery() {
+  const mat = $("c-mat") ? $("c-mat").value : "0.030";
+  const p = new URLSearchParams({
+    lat: $("c-lat").value, lon: $("c-lon").value,
+    date: $("c-date").value, launch_hour: $("c-hour").value,
+    cells: $("c-cells").value, insulation_mm: $("c-ins").value,
+    heater_setpoint_c: setpointValue(), heater_max_w: $("c-hp").value,
+    payload_load_w: $("c-load").value, panel_m2: $("c-pan").value,
+    k_ins: mat, min_operating_c: $("c-minop").value,
+  });
+  return p;
+}
+function designSummary() {
+  return `${$("c-cells").value} cells · ${$("c-ins").value} mm · setpoint ${$("c-sp").value <= -1 ? "off" : $("c-sp").value + " °C"}`;
+}
+
+/* =====================================================================
+   Small progress helper
+   ===================================================================== */
+function progBar(boxId, labelId) {
+  const box = $(boxId), bar = box.querySelector("i"), lbl = $(labelId);
+  box.hidden = false; bar.style.width = "0%";
+  return {
+    set(done, total) {
+      const pct = total ? Math.min(100, 100 * done / total) : Math.min(95, done / 6);
+      bar.style.width = pct + "%";
+      if (lbl) lbl.textContent = total ? `${done} / ${total}` : `${done} completed`;
+    },
+    text(t) { if (lbl) lbl.textContent = t; },
+    done() { bar.style.width = "100%"; setTimeout(() => { box.hidden = true; }, 350); },
+    fail(t) { bar.style.width = "100%"; bar.style.background = "var(--bad)"; if (lbl) lbl.textContent = t; },
+  };
+}
+
+/* =====================================================================
+   Job polling (long searches run in the background server-side)
+   ===================================================================== */
+async function runJob(query, progress) {
+  const start = await fetch("/api/job/start?" + query).then(r => r.json());
+  if (start.error) throw new Error(start.error + (start.hint ? " — " + start.hint : ""));
+  const id = start.job_id;
+  for (;;) {
+    await new Promise(r => setTimeout(r, 700));
+    const st = await fetch("/api/job/status?id=" + id).then(r => r.json());
+    if (st.error) throw new Error(st.error);
+    progress.set(st.done, st.total);
+    if (st.state === "done") return st.result;
+    if (st.state === "error") throw new Error(st.error);
+  }
+}
+
+/* =====================================================================
+   1. RUN
+   ===================================================================== */
+$("b-run").addEventListener("click", async () => {
+  const bar = progBar("run-prog", "run-status");
+  bar.set(0, 1);
+  $("b-run").disabled = true;
+  try {
+    const h = await fetch("/api/health").then(r => r.json());
+    const gfs = h.open_meteo_gfs || {};
+    bar.text(gfs.ok ? `forecast ${gfs.source} · ${gfs.hours} h · ceiling ${gfs.max_alt_km} km` : "fetching forecast…");
+    const d = await fetch("/api/plan?" + designQuery()).then(r => r.json());
+    if (d.error) throw new Error(d.error);
+    S.run = d; S.transparency = d.transparency;
+    renderRun();
+    bar.done();
+  } catch (err) {
+    bar.fail("Failed: " + err.message);
+    $("run-result").innerHTML = `<div class="banner b-isa"><b>Simulation could not run.</b><br>
+      ${esc(err.message)}<br><span class="note">No numbers are shown because none could be computed from real data.
+      The engine does not fall back to invented values.</span></div>`;
+  } finally { $("b-run").disabled = false; }
+});
+
+function verdictClass(v) { return v === "PASS" ? "v-pass" : (v === "FAIL" ? "v-fail" : "v-insuf"); }
+function verdictGlyph(v) { return v === "PASS" ? "✓" : (v === "FAIL" ? "✕" : "!"); }
+
+function renderRun() {
+  const d = S.run, box = $("run-result");
+  const pass = d.verdict === "PASS";
+  const mc = d.mass_cost;
+  box.innerHTML = `
+    <div class="verdict ${verdictClass(d.verdict)}">
+      <div class="glyph" aria-hidden="true">${verdictGlyph(d.verdict)}</div>
+      <div>
+        <div class="word">${d.verdict}</div>
+        <div class="sub">${pass ? "Survived the whole mission window with all constraints satisfied."
+      : `${esc(d.failure_reason || "")} at T+${fmt(d.failure_minute, 0)} min (${esc(d.failure_time || "")})`}</div>
+      </div>
+    </div>
+    <div class="kpis" style="margin-top:14px">
+      <div class="kpi"><div class="k">Survival</div><div class="v">${fmt(d.survival_hours, 2)} h</div><div class="n">of ${fmt(d.duration_min ? d.duration_min / 60 : d.night_hours, 1)} h mission</div></div>
+      <div class="kpi"><div class="k">Coldest cell</div><div class="v">${fmt(d.min_box_c, 1)} °C</div><div class="n">limit ${fmt(d.min_operating_c, 0)} °C</div></div>
+      <div class="kpi"><div class="k">Energy margin</div><div class="v">${d.energy_margin_ratio === null ? "—" : fmt(d.energy_margin_ratio, 2) + "×"}</div><div class="n">${fmt(d.energy_margin_wh, 1)} Wh above reserve</div></div>
+      <div class="kpi"><div class="k">Thermal τ</div><div class="v">${fmt(d.thermal_time_constant_min, 0)} min</div><div class="n">UA ${fmt(d.effective_ua_w_per_k, 3)} W/K</div></div>
+      <div class="kpi"><div class="k">Heater used</div><div class="v">${fmt(d.heater_energy_wh, 1)} Wh</div><div class="n">of ${fmt(d.nominal_wh, 0)} Wh pack</div></div>
+      <div class="kpi"><div class="k">Cost / mass</div><div class="v">₹${fmt(mc.cost_inr, 0)}</div><div class="n">${fmt(mc.mass_kg, 3)} kg</div></div>
+    </div>
+    <div class="btnrow" style="margin-top:14px">
+      <button class="act" id="b-goto-inspect">Inspect timeline →</button>
+      <button class="ghost" id="b-goto-opt">Optimize this mission →</button>
+    </div>
+    <hr>
+    <div id="run-trans"></div>`;
+  $("b-goto-inspect").onclick = () => goTab("inspect");
+  $("b-goto-opt").onclick = () => goTab("optimize");
+  renderTransparency($("run-trans"), d.transparency, { compact: true });
+  populateStressTargets();
+}
+
+/* =====================================================================
+   Transparency panel — shown wherever a number depends on weather
+   ===================================================================== */
+function sourceFlag(src) {
+  const cls = src === "LIVE" ? "fl-live" : (src === "CACHED" ? "fl-cached" : "fl-isa");
+  return `<span class="flag ${cls}">${esc(src || "UNKNOWN")}</span>`;
+}
+function renderTransparency(host, t, opts = {}) {
+  if (!t) { host.innerHTML = ""; return; }
+  const ua = t.sources.upper_air, so = t.sources.solar, ac = t.altitude_coverage;
+  const banner = ua.source === "LIVE"
+    ? `<div class="banner b-live"><b>Live forecast.</b> Upper-air data came from ${esc(ua.model || "the forecast API")}
+       at ${esc(ua.retrieved_utc || "an unrecorded time")}. Every number on this page is derived from it.</div>`
+    : ua.source === "CACHED"
+      ? `<div class="banner b-cache"><b>Cached data — the live fetch failed.</b> This is the last real response saved to disk,
+         retrieved ${esc(ua.retrieved_utc || "earlier")}${ua.age_hours ? ` (${ua.age_hours} h old)` : ""}. It is a real forecast, but it is not current.</div>`
+      : `<div class="banner b-isa"><b>Standard-atmosphere fallback.</b> No forecast was available, so ISA was used.
+         Survival claims now rest on an assumed atmosphere, not a forecast for this date.</div>`;
+  host.innerHTML = `
+    ${banner}
+    <h3>Data provenance</h3>
+    <div class="trans" style="margin-top:8px">
+      <div class="cell"><div class="k">Upper-air source</div><div class="v">${sourceFlag(ua.source)} ${esc(ua.model || "")}</div></div>
+      <div class="cell"><div class="k">Retrieved (UTC)</div><div class="v">${esc(ua.retrieved_utc || "not recorded")}</div></div>
+      <div class="cell"><div class="k">Solar source</div><div class="v">${sourceFlag(so.source)} ${esc(so.model || "")}</div></div>
+      <div class="cell"><div class="k">Forecast period</div><div class="v">${esc(t.forecast_period.first_hour || "—")} → ${esc(t.forecast_period.last_hour || "—")}</div></div>
+      <div class="cell"><div class="k">Altitude coverage</div><div class="v">${ac.levels_in_profile} levels, ${fmt(ac.lowest_km, 2)}–${fmt(ac.highest_km, 2)} km</div></div>
+      <div class="cell"><div class="k">Top level reads</div><div class="v">${fmt(ac.highest_temp_c, 1)} °C at ${fmt(ac.highest_km, 1)} km</div></div>
+    </div>
+    <p class="note" style="margin-top:10px">${esc(ac.above_ceiling_note)}</p>
+    ${opts.compact ? "" : `<p class="note">Mission: ${fmt(t.site.lat, 4)}, ${fmt(t.site.lon, 4)} · launch ${esc(t.launch_local)} · night ${fmt(t.night_hours, 1)} h.
+      Engine <code>${esc((t.engine || {}).version || "")}</code>.</p>`}
+    ${opts.extra || ""}`;
+}
+
+/* =====================================================================
+   2. INSPECT — charts + replay
+   ===================================================================== */
+function niceTicks(min, max, n) {
+  if (max === min) { max = min + 1; }
+  const raw = (max - min) / n, mag = Math.pow(10, Math.floor(Math.log10(Math.abs(raw))));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw) || 10 * mag;
+  const out = []; for (let v = Math.ceil(min / step) * step; v <= max + 1e-9; v += step) out.push(v);
+  return out;
+}
+function linePath(pts, xs, ys) {
+  return pts.map((p, i) => (i ? "L" : "M") + xs(p.x).toFixed(2) + " " + ys(p.y).toFixed(2)).join(" ");
+}
+/**
+ * Draw a multi-series chart. `series` = [{name, colour, dash}] and `data` is an
+ * array of {x, y[]}. Axes labelled with units; gridlines are subtle.
+ */
+function drawChart(svg, opts) {
+  const W = 900, H = svg.viewBox.baseVal.height || 300;
+  const m = { l: 58, r: 62, t: 16, b: 30 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const { data, series, yDomain, xLabel, failX, markY } = opts;
+  const xs = x => m.l + (x - opts.xDomain[0]) / (opts.xDomain[1] - opts.xDomain[0]) * iw;
+  const ys = y => m.t + ih - (y - yDomain[0]) / (yDomain[1] - yDomain[0]) * ih;
+  let s = "";
+  // gridlines + y axis
+  for (const t of niceTicks(yDomain[0], yDomain[1], 4)) {
+    const y = ys(t);
+    s += `<line x1="${m.l}" y1="${y.toFixed(1)}" x2="${m.l + iw}" y2="${y.toFixed(1)}" stroke="#1e2c3d" stroke-width="1"/>`;
+    s += `<text x="${m.l - 8}" y="${(y + 3.5).toFixed(1)}" fill="#5f738a" font-size="11" text-anchor="end">${t}</text>`;
+  }
+  // x axis
+  for (const t of niceTicks(opts.xDomain[0], opts.xDomain[1], 6)) {
+    const x = xs(t);
+    s += `<line x1="${x.toFixed(1)}" y1="${m.t}" x2="${x.toFixed(1)}" y2="${m.t + ih}" stroke="#16202c" stroke-width="1"/>`;
+    s += `<text x="${x.toFixed(1)}" y="${m.t + ih + 17}" fill="#5f738a" font-size="11" text-anchor="middle">${t}</text>`;
+  }
+  s += `<text x="${m.l + iw / 2}" y="${H - 4}" fill="#5f738a" font-size="11" text-anchor="middle">${esc(xLabel)}</text>`;
+  // operating limit band
+  if (markY) {
+    const y = ys(markY.at);
+    s += `<line x1="${m.l}" y1="${y.toFixed(1)}" x2="${m.l + iw}" y2="${y.toFixed(1)}" stroke="${markY.colour}" stroke-width="1.2" stroke-dasharray="5 4"/>`;
+    s += `<text x="${m.l + iw + 6}" y="${(y + 3.5).toFixed(1)}" fill="${markY.colour}" font-size="11">${esc(markY.label)}</text>`;
+  }
+  // failure marker
+  if (failX !== null && failX !== undefined) {
+    const x = xs(failX);
+    s += `<line class="failmark" x1="${x.toFixed(1)}" y1="${m.t}" x2="${x.toFixed(1)}" y2="${m.t + ih}"/>`;
+    s += `<text x="${(x + 5).toFixed(1)}" y="${m.t + 12}" fill="#f87171" font-size="11">failure</text>`;
+  }
+  // series
+  series.forEach((se, i) => {
+    const pts = data.map(p => ({ x: p.x, y: p.y[i] })).filter(p => p.y !== null && p.y !== undefined);
+    if (!pts.length) return;
+    if (se.fill) {
+      const base = ys(yDomain[0]);
+      s += `<path d="${linePath(pts, xs, ys)} L ${xs(pts[pts.length - 1].x).toFixed(2)} ${base} L ${xs(pts[0].x).toFixed(2)} ${base} Z" fill="${se.colour}" opacity=".12"/>`;
+    }
+    s += `<path d="${linePath(pts, xs, ys)}" fill="none" stroke="${se.colour}" stroke-width="${se.width || 1.8}"${se.dash ? ` stroke-dasharray="${se.dash}"` : ""}/>`;
+  });
+  // cursor
+  if (S.cursorX !== null && S.cursorX !== undefined) {
+    const x = xs(S.cursorX);
+    s += `<line x1="${x.toFixed(1)}" y1="${m.t}" x2="${x.toFixed(1)}" y2="${m.t + ih}" stroke="#22d3ee" stroke-width="1" opacity=".8"/>`;
+  }
+  svg.innerHTML = s;
+}
+
+function drawInspect() {
+  const d = S.run;
+  if (!d) return;
+  const tl = d.timeline;
+  const temps = tl.map(r => ({ x: r.minute, y: [r.box_c, r.ambient_c] }));
+  const amb = tl.map(r => ({ x: r.minute, y: [r.ambient_c] }));
+  const lo = Math.min(...tl.map(r => Math.min(r.box_c, r.ambient_c))) - 6;
+  const hi = Math.max(...tl.map(r => Math.max(r.box_c, r.ambient_c))) + 6;
+  S.scrubMax = tl[tl.length - 1].minute;
+
+  drawChart($("chart-temp"), {
+    data: temps, series: [
+      { name: "box", colour: "#f87171" },
+      { name: "ambient", colour: "#8fa3ba", width: 1.3 },
+    ],
+    xDomain: [0, S.scrubMax], yDomain: [lo, hi], xLabel: "mission time (min)",
+    failX: d.failure_minute,
+    markY: { at: Number($("c-minop").value), colour: "#fbbf24", label: "limit" },
+  });
+
+  drawChart($("chart-energy"), {
+    data: tl.map(r => ({ x: r.minute, y: [r.usable_pct, r.alt_km / 26 * 100] })), series: [
+      { name: "charge", colour: "#38bdf8", fill: true },
+      { name: "altitude", colour: "#34d399", width: 1.2, dash: "4 3" },
+    ],
+    xDomain: [0, S.scrubMax], yDomain: [0, 105], xLabel: "mission time (min)",
+    failX: d.failure_minute,
+  });
+
+  const sc = $("c-scrub");
+  sc.max = 1000;
+  sc.value = Math.round(1000 * Math.min(1, (S.cursorX || 0) / S.scrubMax));
+  updateScrubReadout();
+  $("tl-note").textContent =
+    `${d.timeline_points} simulated points, shown every ${Math.max(1, Math.round(d.timestep_s * Math.max(1, Math.floor(d.timeline_points / tl.length))))} s. `
+    + `${fmt(d.isa_fallback_pct, 1)}% of the flight used the ISA fallback above the forecast ceiling.`;
+
+  renderReplay();
+  renderTransparency($("inspect-trans"), d.transparency, {});
+}
+
+function updateScrubReadout() {
+  const d = S.run; if (!d) return;
+  const t = S.cursorX || 0;
+  let best = d.timeline[0];
+  for (const r of d.timeline) if (r.minute <= t) best = r;
+  $("v-scrub").textContent = `T+${Math.round(best.minute)} min (${best.time})`;
+  $("scrub-readout").innerHTML = [
+    ["Box temp", fmt(best.box_c, 1) + " °C"],
+    ["Ambient", fmt(best.ambient_c, 1) + " °C"],
+    ["Altitude", fmt(best.alt_km, 1) + " km"],
+    ["Usable charge", fmt(best.usable_pct, 1) + " %"],
+    ["Capacity at temp", fmt(best.capacity_frac * 100, 0) + " %"],
+    ["Heater", fmt(best.heater_w, 2) + " W"],
+    ["Total demand", fmt(best.demand_w, 2) + " W"],
+  ].map(([k, v]) => `<div><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+}
+
+$("c-scrub").addEventListener("input", () => {
+  S.cursorX = S.scrubMax * ($("c-scrub").value / 1000);
+  drawInspect();
+});
+$("b-fail").addEventListener("click", () => {
+  if (!S.run || S.run.failure_minute === null) {
+    if (S.run) { $("v-scrub").textContent = "This design did not fail — it survived."; }
+    return;
+  }
+  S.cursorX = S.run.failure_minute;
+  $("c-scrub").value = Math.round(1000 * S.cursorX / S.scrubMax);
+  drawInspect();
+});
+$("b-play").addEventListener("click", () => {
+  if (!S.run) return;
+  if (S.playTimer) clearInterval(S.playTimer);
+  S.cursorX = 0;
+  S.playTimer = setInterval(() => {
+    S.cursorX += S.scrubMax / 60;
+    if (S.cursorX >= S.scrubMax) { S.cursorX = S.scrubMax; clearInterval(S.playTimer); S.playTimer = null; }
+    $("c-scrub").value = Math.round(1000 * S.cursorX / S.scrubMax);
+    drawInspect();
+  }, 60);
+});
+$("b-pause").addEventListener("click", () => {
+  if (S.playTimer) { clearInterval(S.playTimer); S.playTimer = null; }
+});
+
+/* ---- explainable failure replay ---- */
+function renderReplay() {
+  const d = S.run, host = $("replay");
+  if (!d) { host.innerHTML = ""; return; }
+  const ex = d.failure_explanation || {};
+  if (d.verdict === "PASS") {
+    host.innerHTML = `
+      <div class="banner b-live"><b>✓ No constraint was violated.</b><br>
+      The design held for the entire ${fmt(d.night_hours, 1)} h mission window. Coldest cell temperature was
+      ${fmt(d.min_box_c, 1)} °C against a limit of ${fmt(d.min_operating_c, 0)} °C.</div>
+      <p class="note">There is no failure to replay. Run the stress test to see where this design
+      would break if the inputs were worse than forecast.</p>`;
+    return;
+  }
+  host.innerHTML = `
+    <div class="banner b-isa"><b>✕ ${esc(d.verdict)} — ${esc(d.failure_reason)}</b><br>${esc(ex.headline || d.failure_text || "")}</div>
+    <h3>Chronology</h3>
+    <ol class="chrono">${(ex.chronology || []).map((c, i, a) =>
+      `<li class="${i === a.length - 1 ? "last" : ""}">${esc(c)}</li>`).join("")}</ol>
+    <h3 style="margin-top:14px">Contributing factors</h3>
+    <ul class="plain">${(ex.contributing_factors || []).map(f => `<li>${esc(f)}</li>`).join("")}</ul>
+    <h3 style="margin-top:14px">Corrective changes worth trying</h3>
+    <ul class="plain">${(ex.suggested_changes || []).map(s =>
+        `<li><b>${esc(s.change)}</b> → ${esc(String(s.to))}<br><span class="note">${esc(s.why)}</span></li>`).join("")}</ul>
+    <div class="btnrow" style="margin-top:12px">
+      <button class="act" id="b-retry">Apply the first change and re-run</button>
+    </div>`;
+  const btn = $("b-retry");
+  if (btn) btn.onclick = () => {
+    const s = (ex.suggested_changes || [])[0];
+    if (!s) return;
+    if (s.change === "insulation_mm") { $("c-ins").value = s.to; ctrls.ins.fmt(s.to); }
+    else if (s.change === "cells") { $("c-cells").value = s.to; }
+    else if (s.change === "heater_max_w") { $("c-hp").value = s.to; }
+    else if (s.change === "payload_load_w") { $("c-load").value = s.to; }
+    $("c-ins").dispatchEvent(new Event("input")); $("c-load").dispatchEvent(new Event("input"));
+    $("c-hp").dispatchEvent(new Event("input"));
+    goTab("run"); $("b-run").click();
+  };
+}
+
+/* =====================================================================
+   3. OPTIMIZE
+   ===================================================================== */
+$("b-opt").addEventListener("click", async () => {
+  const bar = progBar("opt-prog", "opt-status");
+  $("b-opt").disabled = true; $("opt-result").innerHTML = "";
+  try {
+    const q = designQuery();
+    q.set("kind", "optimise");
+    q.set("objective", $("c-obj").value);
+    q.set("screen_scenarios", $("c-scen").value);
+    q.set("screen_top", "6");
+    bar.text("searching…");
+    const res = await runJob(q.toString(), bar);
+    S.optimiser = res;
+    renderOptimiser(res);
+    bar.done();
+  } catch (err) {
+    bar.fail("Failed: " + err.message);
+  } finally { $("b-opt").disabled = false; }
+});
+
+function designCell(d) {
+  return `${d.cells}c · ${d.insulation_mm} mm · sp ${d.heater_setpoint_c === null ? "off" : d.heater_setpoint_c + "°C"} · hp ${d.heater_max_w} W · panel ${d.panel_m2} m²`;
+}
+function renderOptimiser(r) {
+  const host = $("opt-result");
+  const sl = r.search_limits;
+  const picks = r.picks || {};
+  const cells = Object.entries(picks).filter(([, v]) => v);
+  const screened = (r.screened || []).filter(x => x.stress_pass !== undefined);
+
+  host.innerHTML = `
+    <div class="panel">
+      <h2>Result for: ${esc(r.objective_text)}</h2>
+      ${r.best ? `
+      <div class="verdict v-pass" style="margin:10px 0">
+        <div class="glyph" aria-hidden="true">★</div>
+        <div><div class="word">BEST IN SEARCH</div>
+        <div class="sub">${esc(designCell(r.best.design))} — ₹${fmt(r.best.cost_inr, 0)}, ${fmt(r.best.mass_kg, 3)} kg,
+        survives ${fmt(r.best.survival_hours, 2)} h, margin ${r.best.energy_margin_ratio}×, coldest ${fmt(r.best.min_box_c, 1)} °C</div></div>
+      </div>` : `<div class="banner b-isa"><b>No feasible design found in the searched set.</b>
+        Every candidate violated at least one constraint. Widen the ranges in the engine or relax a constraint —
+        do not present an infeasible design as a recommendation.</div>`}
+      <h3>Best design for each objective, from the same search</h3>
+      <table><thead><tr><th>Objective</th><th>Design</th><th class="num">Cost</th><th class="num">Mass</th>
+        <th class="num">Margin</th><th class="num">Coldest</th><th class="num">Stress</th></tr></thead><tbody>
+        ${cells.map(([k, v]) => `<tr class="${k === r.objective ? "win" : ""}">
+          <td>${esc(k)}</td><td>${esc(designCell(v.design))}</td>
+          <td class="num">₹${fmt(v.cost_inr, 0)}</td><td class="num">${fmt(v.mass_kg, 3)}</td>
+          <td class="num">${v.energy_margin_ratio}×</td><td class="num">${fmt(v.min_box_c, 1)} °C</td>
+          <td class="num">${v.stress_pass !== undefined ? `${v.stress_pass}/${v.stress_total}` : "not screened"}</td></tr>`).join("")}
+      </tbody></table>
+    </div>
+
+    <div class="panel">
+      <h2>Robustness screen</h2>
+      <p class="note">The cheap proxies used during the search (energy margin, temperature headroom) do not
+        capture <i>combined</i> stress. So the leading candidates are re-simulated across many stressed scenarios.
+        This is the only honest way to say which design is actually robust.</p>
+      <table><thead><tr><th>Design</th><th class="num">Cost</th><th class="num">Margin</th>
+        <th class="num">Headroom</th><th class="num">Scenarios passed</th><th>Verdict</th></tr></thead><tbody>
+        ${screened.map(x => `<tr class="${x.stress_pass_fraction === 1 ? "win" : ""}">
+          <td>${esc(designCell(x.design))}</td><td class="num">₹${fmt(x.cost_inr, 0)}</td>
+          <td class="num">${x.energy_margin_ratio}×</td><td class="num">${fmt(x.temperature_headroom_c, 1)} °C</td>
+          <td class="num">${x.stress_pass}/${x.stress_total} (${fmt(100 * x.stress_pass_fraction, 0)}%)</td>
+          <td>${x.stress_pass_fraction === 1 ? '<span class="pill p-pass">✓ all</span>' :
+        x.stress_pass_fraction >= 0.5 ? '<span class="pill p-warn">! partial</span>' :
+          '<span class="pill p-fail">✕ weak</span>'}</td></tr>`).join("")}
+      </tbody></table>
+      ${r.robust_pick ? `<p class="note" style="margin-top:10px">Robustness pick: <b>${esc(designCell(r.robust_pick.design))}</b> —
+        passed ${r.robust_pick.stress_pass} of ${r.robust_pick.stress_total} stressed scenarios.</p>` : ""}
+    </div>
+
+    <div class="panel">
+      <h2>Search limits — read this before saying "optimal"</h2>
+      <div class="trans">
+        <div class="cell"><div class="k">Candidates simulated</div><div class="v">${r.combinations_evaluated}</div></div>
+        <div class="cell"><div class="k">Declared grid size</div><div class="v">${sl.declared_grid_size}</div></div>
+        <div class="cell"><div class="k">Coverage</div><div class="v">${sl.coverage_pct}%</div></div>
+        <div class="cell"><div class="k">Exhaustive?</div><div class="v">${sl.exhaustive ? "Yes" : "No — refined locally"}</div></div>
+        <div class="cell"><div class="k">Feasible / infeasible</div><div class="v">${r.feasible_count} / ${r.infeasible_count}</div></div>
+      </div>
+      <p class="note" style="margin-top:10px">${esc(sl.statement)}</p>
+      <h3 style="margin-top:12px">Constraint violations across the search</h3>
+      <table><thead><tr><th>Constraint</th><th class="num">Candidates that broke it</th></tr></thead><tbody>
+        ${Object.entries(r.violation_counts || {}).map(([k, v]) =>
+          `<tr><td>${esc(k)}</td><td class="num">${v}</td></tr>`).join("") || "<tr><td colspan=2 class='note'>None.</td></tr>"}
+      </tbody></table>
+    </div>
+
+    <div class="panel">
+      <h2>Top passing designs</h2>
+      <table><thead><tr><th class="num">#</th><th>Design</th><th class="num">Cost</th><th class="num">Mass</th>
+        <th class="num">Margin</th><th class="num">Coldest</th><th class="num">τ</th><th>Constraints</th></tr></thead><tbody>
+        ${(r.top_passing || []).map((x, i) => `<tr>
+          <td class="num">${i + 1}</td><td>${esc(designCell(x.design))}</td>
+          <td class="num">₹${fmt(x.cost_inr, 0)}</td><td class="num">${fmt(x.mass_kg, 3)}</td>
+          <td class="num">${x.energy_margin_ratio}×</td><td class="num">${fmt(x.min_box_c, 1)} °C</td>
+          <td class="num">${fmt(x.thermal_time_constant_min, 0)} m</td>
+          <td>${(x.constraints || []).filter(c => !c.ok).length === 0
+        ? '<span class="pill p-pass">✓ all met</span>'
+        : `<span class="pill p-fail">✕ ${(x.constraints || []).filter(c => !c.ok).length} not met</span>`}</td></tr>`).join("")}
+      </tbody></table>
+    </div>
+
+    <div class="btnrow"><button class="act" id="b-use-best">Load the best design and re-run</button>
+      <button class="ghost" id="b-to-stress">Stress-test the recommended design →</button></div>`;
+
+  const best = r.best || r.robust_pick;
+  if (best) {
+    $("b-use-best").onclick = () => { applyDesign(best.design); goTab("run"); $("b-run").click(); };
+    $("b-to-stress").onclick = () => {
+      applyDesign(best.design);
+      const key = Object.entries(S.optimiser.picks || {}).find(([, v]) => v && v.design.cells === best.design.cells
+        && v.design.insulation_mm === best.design.insulation_mm) ? "opt" : "opt";
+      S.stressTarget = best;
+      populateStressTargets();
+      goTab("stress");
+      $("b-stress").click();
+    };
+  }
+}
+
+function applyDesign(d) {
+  if (d.cells !== undefined) { $("c-cells").value = d.cells; }
+  if (d.insulation_mm !== undefined) { $("c-ins").value = d.insulation_mm; }
+  if (d.heater_setpoint_c !== undefined) {
+    $("c-sp").value = (d.heater_setpoint_c === null || d.heater_setpoint_c < -0.5) ? -1 : d.heater_setpoint_c;
+  }
+  if (d.heater_max_w !== undefined) $("c-hp").value = d.heater_max_w;
+  if (d.panel_m2 !== undefined) $("c-pan").value = d.panel_m2;
+  for (const k in ctrls) $(ctrls[k].id).dispatchEvent(new Event("input"));
+  ["c-cells", "c-ins", "c-sp", "c-hp", "c-pan"].forEach(id => $(id).dispatchEvent(new Event("input")));
+}
+
+/* =====================================================================
+   4. STRESS
+   ===================================================================== */
+function populateStressTargets() {
+  const sel = $("c-stress-target"); if (!sel) return;
+  const opts = [];
+  if (S.run) opts.push(["current", "The design currently configured"]);
+  if (S.optimiser) {
+    for (const [k, v] of Object.entries(S.optimiser.picks || {})) {
+      if (v) opts.push(["pick:" + k, `Optimiser: ${k} — ${designCell(v.design)}`]);
+    }
+  }
+  const prev = sel.value;
+  sel.innerHTML = opts.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join("");
+  if (opts.some(o => o[0] === prev)) sel.value = prev;
+}
+function selectedStressDesign() {
+  const v = $("c-stress-target").value;
+  if (v.startsWith("pick:") && S.optimiser) {
+    const p = S.optimiser.picks[v.slice(5)];
+    if (p) return { design: p.design, label: v.slice(5) };
+  }
+  return { design: null, label: "current" };
+}
+
+$("b-stress").addEventListener("click", async () => {
+  if (!S.run) { alert("Run a flight simulation first."); return; }
+  const bar = progBar("stress-prog", "stress-status");
+  const t = selectedStressDesign();
+  const q = designQuery();
+  if (t.design) {
+    for (const [k, v] of Object.entries(t.design)) {
+      if (v === null) q.set("heater_setpoint_c", "none");
+      else q.set(k === "heater_setpoint_c" ? "heater_setpoint_c" : k, v);
+    }
+  }
+  q.set("scenarios", $("c-nscen").value);
+  bar.text("simulating scenarios…");
+  $("b-stress").disabled = true;
+  try {
+    const res = await fetch("/api/stress?" + q).then(r => r.json());
+    if (res.error) throw new Error(res.error);
+    S.stress = res; S.stressLabel = t.label;
+    renderStress(res, t.label);
+    bar.done();
+  } catch (err) { bar.fail("Failed: " + err.message); }
+  finally { $("b-stress").disabled = false; }
+});
+
+function renderStress(r, label) {
+  const st = r.stress, se = r.sensitivity, named = r.named;
+  const pct = 100 * st.pass_fraction;
+  const allPass = st.passed === st.n_scenarios;
+  const host = $("stress-result");
+  host.innerHTML = `
+    <div class="panel">
+      <div class="verdict ${allPass ? "v-pass" : (pct >= 50 ? "v-insuf" : "v-fail")}">
+        <div class="glyph" aria-hidden="true">${allPass ? "✓" : (pct >= 50 ? "!" : "✕")}</div>
+        <div><div class="word">${st.passed} / ${st.n_scenarios} SCENARIOS PASSED</div>
+        <div class="sub">${esc(label)} design · ${fmt(pct, 0)}% pass rate over the declared input ranges</div></div>
+      </div>
+      <p class="note" style="margin-top:12px">${esc(st.headline)}</p>
+      <p class="note">${esc(st.disclaimer)}</p>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <h2>Where it breaks</h2>
+        <p>${esc(st.failure_conditions.text)}</p>
+        <table><thead><tr><th>Failure reason</th><th class="num">Scenarios</th></tr></thead><tbody>
+          ${Object.entries(st.failure_reason_counts || {}).map(([k, v]) =>
+            `<tr><td>${esc(k)}</td><td class="num">${v}</td></tr>`).join("")
+    || "<tr><td colspan=2 class='note'>No failures in any scenario.</td></tr>"}
+        </tbody></table>
+        <h3 style="margin-top:14px">Worst simulated scenario</h3>
+        <p class="note">${esc(Object.entries(st.worst.factors).map(([k, v]) =>
+      `${k} = ${v}`).join("<br>"))}<br>
+          <b>${esc(st.worst.verdict)} ${st.worst.failure_reason ? "— " + esc(st.worst.failure_reason) : ""}</b>,
+          survived ${fmt(st.worst.survival_hours, 2)} h, coldest ${fmt(st.worst.min_box_c, 1)} °C.</p>
+      </div>
+      <div class="panel">
+        <h2>Which assumption matters most</h2>
+        <p class="note">${esc(se.method_note)}</p>
+        <table><thead><tr><th>Input</th><th class="num">Robustness index</th><th>Alone fatal?</th></tr></thead><tbody>
+          ${se.ranking.map(x => `<tr>
+            <td>${esc(x.label)}</td>
+            <td class="num">${fmt(x.worst_robustness_index, 3)}</td>
+            <td>${x.single_input_fails
+        ? '<span class="pill p-fail">✕ yes</span>'
+        : '<span class="pill p-pass">✓ no</span>'}</td></tr>`).join("")}
+        </tbody></table>
+        <p class="note" style="margin-top:10px">Index 1.000 = pushing that one input to its worst
+          assumed value consumed none of the design's spare capability. Lower is worse; below 0 means
+          that single input alone was enough to fail the design.</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Named scenarios</h2>
+      <table><thead><tr><th>Scenario</th><th>Result</th><th>Survival</th><th class="num">Coldest</th><th class="num">Margin</th></tr></thead><tbody>
+        ${named.map(n => `<tr>
+          <td>${esc(n.name)}</td>
+          <td>${n.verdict === "PASS" ? '<span class="pill p-pass">✓ PASS</span>'
+      : `<span class="pill p-fail">✕ ${esc(n.failure_reason || "FAIL")}</span>`}</td>
+          <td>${fmt(n.survival_hours, 2)} h</td><td class="num">${fmt(n.min_box_c, 1)} °C</td>
+          <td class="num">${n.energy_margin_ratio}×</td></tr>`).join("")}
+      </tbody></table>
+    </div>
+
+    <div class="panel">
+      <h2>Assumed ranges</h2>
+      <table><thead><tr><th>Input</th><th class="num">Range</th><th>Why this range</th></tr></thead><tbody>
+        ${Object.entries(st.ranges).map(([k, v]) => `<tr><td>${esc(v.label)}</td>
+          <td class="num">${v.lo} … ${v.hi} ${esc(v.unit)}</td><td class="note">${esc(v.note)}</td></tr>`).join("")}
+      </tbody></table>
+    </div>`;
+}
+
+/* =====================================================================
+   5. BATTLE
+   ===================================================================== */
+$("b-battle").addEventListener("click", async () => {
+  const bar = progBar("battle-prog", "battle-status");
+  $("b-battle").disabled = true; $("battle-result").innerHTML = "";
+  try {
+    const q = designQuery();
+    q.set("kind", "battle");
+    q.set("objective", $("c-obj").value);
+    q.set("scenarios", "24");
+    bar.text("optimising, then fighting…");
+    const res = await runJob(q.toString(), bar);
+    S.battle = res.battle; S.optimiser = res.optimiser;
+    renderBattle(res.battle);
+    bar.done();
+  } catch (err) { bar.fail("Failed: " + err.message); }
+  finally { $("b-battle").disabled = false; }
+});
+
+function renderBattle(b) {
+  const w = b.winner;
+  const byKey = Object.fromEntries(b.entries.map(e => [e.key, e]));
+  const host = $("battle-result");
+  host.innerHTML = `
+    <div class="panel">
+      <div class="verdict v-pass">
+        <div class="glyph" aria-hidden="true">★</div>
+        <div><div class="word">${esc(byKey[w].label).toUpperCase()} WINS</div>
+        <div class="sub">judged on ${esc(b.objective_label.toLowerCase())}</div></div>
+      </div>
+      <p style="margin-top:12px">${esc(b.verdict)}</p>
+      <p class="note">${esc(b.conditions.note)} Launch ${esc(b.conditions.launch)}, night ${fmt(b.conditions.night_hours, 1)} h.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Side by side</h2>
+      <table><thead><tr>
+        <th>Design</th><th>Result</th><th class="num">Cost</th><th class="num">Mass</th>
+        <th class="num">Margin</th><th class="num">Coldest</th><th class="num">τ</th><th class="num">Stress</th></tr></thead><tbody>
+        ${b.ranked_keys.map(k => { const e = byKey[k]; return `<tr class="${k === w ? "win" : (e.verdict !== "PASS" ? "lose" : "")}">
+          <td><b>${esc(e.label)}</b><br><span class="note">${esc(designCell(e.design))}</span></td>
+          <td>${e.verdict === "PASS" ? '<span class="pill p-pass">✓ PASS</span>'
+      : `<span class="pill p-fail">✕ ${esc(e.failure_reason || "")}</span><br><span class="note">${esc(e.failure_time || "")}</span>`}</td>
+          <td class="num">₹${fmt(e.cost_inr, 0)}</td><td class="num">${fmt(e.mass_kg, 3)}</td>
+          <td class="num">${e.margin_ratio}×</td><td class="num">${fmt(e.min_box_c, 1)} °C</td>
+          <td class="num">${fmt(e.thermal_time_constant_min, 0)} m</td>
+          <td class="num">${e.stress_pass}/${e.stress_total}</td></tr>`; }).join("")}
+      </tbody></table>
+    </div>
+
+    ${b.entries.filter(e => e.verdict !== "PASS").map(e => `
+    <div class="panel">
+      <h2>Why ${esc(e.label)} lost</h2>
+      <p class="note">${esc(e.thesis)}</p>
+      <div class="banner b-isa"><b>✕ ${esc(e.failure_reason)}</b> at ${esc(e.failure_time || "")}<br>${esc(e.failure_mechanism || "")}</div>
+      <h3>Chronology</h3>
+      <ol class="chrono">${(e.failure_chronology || []).map((c, i, a) =>
+      `<li class="${i === a.length - 1 ? "last" : ""}">${esc(c)}</li>`).join("")}</ol>
+      <h3 style="margin-top:12px">Contributing factors</h3>
+      <ul class="plain">${(e.contributing_factors || []).map(f => `<li>${esc(f)}</li>`).join("")}</ul>
+    </div>`).join("")}`;
+}
+
+/* =====================================================================
+   6. EXPORT
+   ===================================================================== */
+$("b-report").addEventListener("click", async () => {
+  $("b-report").disabled = true;
+  $("report-result").innerHTML = `<div class="empty">Building report…</div>`;
+  try {
+    const rep = await fetch("/api/report?" + designQuery()).then(r => r.json());
+    if (rep.error) throw new Error(rep.error);
+    S.report = rep;
+    $("b-report-json").disabled = false; $("b-report-print").disabled = false;
+    renderReport(rep);
+  } catch (err) {
+    $("report-result").innerHTML = `<div class="banner b-isa"><b>Report could not be built.</b><br>${esc(err.message)}</div>`;
+  } finally { $("b-report").disabled = false; }
+});
+$("b-report-json").addEventListener("click", () => {
+  window.location = "/api/report.json?" + designQuery();
+});
+$("b-report-print").addEventListener("click", () => window.print());
+
+function renderVerificationSection(v) {
+  if (!v.available) {
+    return `<div class="panel"><h2>Verification evidence</h2>
+      <div class="banner b-cache">${esc(v.note)}</div>
+      <p class="note">No verification numbers are shown because none have been
+      generated. Nothing here is a placeholder.</p></div>`;
+  }
+  const bs = v.benchmark_summary;
+  return `
+    <div class="panel"><h2>Verification evidence</h2>
+      <p class="note">Generated ${esc(v.generated_utc)} · engine ${esc(v.engine_version)}</p>
+      <p class="note">Evidence categories present: ${esc((v.evidence_categories || []).join(", "))}.
+        Category E: <b>${esc(v.category_e)}</b>.</p>
+      <table><thead><tr><th>ID</th><th>Benchmark</th><th>Category</th>
+        <th class="num">Checks</th><th class="num">Failed</th></tr></thead><tbody>
+        ${(v.benchmarks || []).map(b => `<tr><td>${esc(b.id)}</td><td>${esc(b.title)}</td>
+          <td>${catPill(b.category)} ${esc(b.category)}</td>
+          <td class="num">${b.checks}</td>
+          <td class="num">${b.failed === 0 ? "0 ✓" : b.failed}</td></tr>`).join("")}
+      </tbody></table>
+      <h3 style="margin-top:12px">Energy balance</h3>
+      <table><thead><tr><th>Design</th><th>Verdict</th><th class="num">Residual (Wh)</th>
+        <th class="num">Tolerance</th><th>Balanced</th></tr></thead><tbody>
+        ${(v.energy_balance.rows || []).map(x => `<tr><td>${esc(x.design)}</td><td>${esc(x.verdict)}</td>
+          <td class="num">${Number(x.electrical_residual_wh).toExponential(2)}</td>
+          <td class="num">${v.energy_balance.tolerance_wh}</td>
+          <td>${x.electrical_pass ? '<span class="pill p-pass">✓</span>' : '<span class="pill p-fail">✕</span>'}</td></tr>`).join("")}
+      </tbody></table>
+      <p class="note" style="margin-top:6px">Defects found and fixed in this pass:
+        ${esc((v.energy_balance.defects_fixed || []).join(", ") || "none")}.
+        State consistency scan: ${v.energy_balance.state_audit_clean ? "clean" : "VIOLATIONS FOUND"}.</p>
+      <h3 style="margin-top:12px">Numerical convergence</h3>
+      <table><thead><tr><th>Scenario</th><th>Verdict stable</th><th class="num">Failure-time spread (min)</th>
+        <th class="num">Min-T spread (°C)</th><th class="num">Measured order</th></tr></thead><tbody>
+        ${(v.convergence || []).map(c => `<tr><td>${esc(c.scenario)}</td>
+          <td>${c.verdict_stable ? "yes ✓" : "NO ✕"}</td>
+          <td class="num">${fmt(c.failure_time_spread_min, 2)}</td>
+          <td class="num">${fmt(c.min_temp_spread_c, 4)}</td>
+          <td class="num">${c.order_estimate === null ? "—" : c.order_estimate}</td></tr>`).join("")}
+      </tbody></table>
+      <h3 style="margin-top:12px">Battery model</h3>
+      <p class="note">${esc(v.battery.source_status)}</p>
+      <h3 style="margin-top:12px">Uncertainty</h3>
+      <p class="note">${esc(v.uncertainty.disclaimer)}</p>
+      <table><thead><tr><th>Design</th><th>Verdict</th><th>Failure</th>
+        <th class="num">Min T (°C)</th></tr></thead><tbody>
+        ${Object.entries(v.uncertainty.combined_worst_case || {}).map(([k, x]) => `<tr>
+          <td>${esc(k)}</td><td>${esc(x.verdict)}</td><td>${esc(x.failure_reason || "—")}</td>
+          <td class="num">${fmt(x.min_box_c, 1)}</td></tr>`).join("")}
+      </tbody></table>
+      <p class="note" style="margin-top:6px">Design ranking
+        ${v.uncertainty.ranking_survives ? "survives every swept value." :
+        `is NOT stable: ${v.uncertainty.ranking_flips.length} inversion(s).`}</p>
+      <h3 style="margin-top:12px">Unresolved</h3>
+      <ul class="plain">${(v.unresolved || []).map(u => `<li>${esc(u)}</li>`).join("")}</ul>
+    </div>`;
+}
+
+function renderReport(r) {
+  const cls = r.status === "PASS" ? "v-pass" : (r.status === "FAIL" ? "v-fail" : "v-insuf");
+  const glyph = r.status === "PASS" ? "✓" : (r.status === "FAIL" ? "✕" : "!");
+  const res = r.results, t = r.transparency;
+  const host = $("report-result");
+  host.innerHTML = `
+    <div class="panel">
+      <div class="verdict ${cls}">
+        <div class="glyph" aria-hidden="true">${glyph}</div>
+        <div><div class="word">${esc(r.status)}</div><div class="sub">${esc(r.status_reason)}</div></div>
+      </div>
+      <p class="note" style="margin-top:10px">Generated ${esc(r.generated_utc)} · engine ${esc((t.engine || {}).version || "")} · reproducible from the design values below.</p>
+    </div>
+
+    <div class="panel"><h2>1. Mission</h2>
+      <div class="trans">
+        <div class="cell"><div class="k">Site</div><div class="v">${fmt(r.mission.site.lat, 4)}, ${fmt(r.mission.site.lon, 4)}</div></div>
+        <div class="cell"><div class="k">Date / launch</div><div class="v">${esc(r.mission.launch_local)}</div></div>
+        <div class="cell"><div class="k">Duration</div><div class="v">${r.mission.duration_min} min</div></div>
+        <div class="cell"><div class="k">Profile</div><div class="v">${r.mission.profile.ascent_min} + ${r.mission.profile.float_min} + ${r.mission.profile.descent_min} min to ${r.mission.profile.burst_alt_km} km</div></div>
+      </div>
+    </div>
+
+    <div class="panel"><h2>2. Data freshness &amp; provenance</h2>
+      <div class="trans">
+        <div class="cell"><div class="k">Upper-air</div><div class="v">${sourceFlag(t.sources.upper_air.source)} ${esc(t.sources.upper_air.model || "")}</div></div>
+        <div class="cell"><div class="k">Retrieved (UTC)</div><div class="v">${esc(t.sources.upper_air.retrieved_utc || "not recorded")}</div></div>
+        <div class="cell"><div class="k">Forecast period</div><div class="v">${esc(t.forecast_period.first_hour)} → ${esc(t.forecast_period.last_hour)}</div></div>
+        <div class="cell"><div class="k">Altitude coverage</div><div class="v">${t.altitude_coverage.levels_in_profile} levels to ${fmt(t.altitude_coverage.highest_km, 2)} km</div></div>
+        <div class="cell"><div class="k">ISA fallback</div><div class="v">${fmt(res.failure_reason ? 0 : 0, 0)}</div></div>
+      </div>
+      <p class="note" style="margin-top:8px">${esc(t.altitude_coverage.above_ceiling_note)}</p>
+    </div>
+
+    <div class="panel"><h2>3. Design &amp; results</h2>
+      <table><tbody>
+        ${Object.entries(r.design).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="num">${esc(String(v))}</td></tr>`).join("")}
+      </tbody></table>
+      <h3 style="margin-top:12px">Outcome</h3>
+      <table><tbody>
+        <tr><td>Verdict</td><td class="num">${esc(res.verdict)}</td></tr>
+        <tr><td>Failure</td><td class="num">${esc(res.failure_reason || "none")} ${esc(res.failure_time || "")}</td></tr>
+        <tr><td>Survival</td><td class="num">${fmt(res.survival_hours, 2)} h</td></tr>
+        <tr><td>Minimum cell temperature</td><td class="num">${fmt(res.min_box_c, 1)} °C</td></tr>
+        <tr><td>Energy margin</td><td class="num">${res.energy_margin_ratio}× (${fmt(res.energy_margin_wh, 1)} Wh)</td></tr>
+        <tr><td>Effective conductance</td><td class="num">${fmt(res.effective_ua_w_per_k, 4)} W/K</td></tr>
+        <tr><td>Thermal time constant</td><td class="num">${fmt(res.thermal_time_constant_min, 1)} min</td></tr>
+        <tr><td>Timestep / points</td><td class="num">${res.timestep_s} s / ${res.timeline_points}</td></tr>
+        <tr><td>Heater energy</td><td class="num">${fmt(res.heater_energy_wh, 2)} Wh</td></tr>
+        <tr><td>Heat lost through walls</td><td class="num">${fmt(res.heat_lost_wh, 2)} Wh</td></tr>
+      </tbody></table>
+    </div>
+
+    <div class="panel"><h2>4. Cost &amp; mass breakdown</h2>
+      <table><thead><tr><th>Item</th><th class="num">Mass (kg)</th><th class="num">Cost (₹)</th><th>Basis</th></tr></thead><tbody>
+        ${(r.cost_mass.items || []).map(i => `<tr><td>${esc(i.item)}</td>
+          <td class="num">${fmt(i.mass_kg, 4)}</td><td class="num">${fmt(i.cost_inr, 0)}</td>
+          <td class="note">${esc(i.basis || "")}</td></tr>`).join("")}
+        <tr><td><b>Total</b></td><td class="num"><b>${fmt(r.cost_mass.mass_kg, 3)}</b></td>
+          <td class="num"><b>${fmt(r.cost_mass.cost_inr, 0)}</b></td><td></td></tr>
+      </tbody></table>
+    </div>
+
+    <div class="panel"><h2>5. Methodology</h2>
+      <ul class="plain">${Object.entries(r.methodology).map(([k, v]) =>
+        `<li><b>${esc(k)}</b>: ${esc(v)}</li>`).join("")}</ul>
+    </div>
+
+    <div class="panel"><h2>6. Assumptions</h2>
+      <p class="note">Every constant the engine used, with the source tag recorded in <code>engine/params.py</code>.</p>
+      <table><thead><tr><th>Constant</th><th class="num">Value</th></tr></thead><tbody>
+        ${Object.entries(r.assumptions || {}).map(([k, v]) =>
+          `<tr><td>${esc(k)}</td><td class="num">${esc(JSON.stringify(v))}</td></tr>`).join("")}
+      </tbody></table>
+    </div>
+
+    ${r.verification ? renderVerificationSection(r.verification) : ""}
+
+    <div class="panel"><h2>7. Limitations</h2>
+      <ul class="plain">${(r.limitations || []).map(l => `<li>${esc(l)}</li>`).join("")}</ul>
+      ${r.failure_explanation && r.failure_explanation.chronology && r.failure_explanation.chronology.length
+      ? `<h3 style="margin-top:12px">Failure replay (from the simulated trace)</h3>
+           <ol class="chrono">${r.failure_explanation.chronology.map((c, i, a) =>
+        `<li class="${i === a.length - 1 ? "last" : ""}">${esc(c)}</li>`).join("")}</ol>` : ""}
+    </div>`;
+}
+
+/* =====================================================================
+   7. VERIFICATION DASHBOARD
+   ===================================================================== */
+const CAT_DESC = {
+  A: "Analytical verification — compared against a closed-form solution",
+  B: "Independent reference comparison — external published source",
+  C: "Numerical / software verification — convergence, invariants, regression",
+  D: "Assumption or exploratory scenario — chosen, not verified",
+  E: "Physical experiment — NOT PERFORMED",
+};
+function catPill(c) {
+  const cls = c === "A" ? "p-pass" : c === "B" ? "p-info" : c === "C" ? "p-info" : c === "D" ? "p-warn" : "p-fail";
+  return `<span class="pill ${cls}" title="${esc(CAT_DESC[c] || "")}">${c}</span>`;
+}
+
+$("b-verify").addEventListener("click", async () => {
+  $("b-verify").disabled = true;
+  $("verify-status").textContent = "loading…";
+  try {
+    const d = await fetch("/api/verification").then(r => r.json());
+    if (d.error) throw new Error(d.error + (d.hint ? " — " + d.hint : ""));
+    renderVerification(d);
+    $("verify-status").textContent = `results generated ${d.generated_utc} · engine ${d.engine_version} · forecast ${d.provenance}`;
+  } catch (err) {
+    $("verify-status").textContent = "Failed: " + err.message;
+    $("verify-result").innerHTML = `<div class="banner b-isa"><b>No verification results available.</b><br>
+      ${esc(err.message)}<br><span class="note">Run <code>cd app &amp;&amp; python3 verify.py</code> to generate them.
+      Nothing is displayed rather than showing placeholder results.</span></div>`;
+  } finally { $("b-verify").disabled = false; }
+});
+$("b-verify-dl").addEventListener("click", () => {
+  window.location = "/api/verification?download=1";
+});
+
+function renderVerification(d) {
+  const bs = d.benchmark_summary || {}, t2 = d.task2_energy, t3 = d.task3_battery,
+        t4 = d.task4_convergence, t6 = d.task6_uncertainty;
+  const host = $("verify-result");
+
+  host.innerHTML = `
+    <div class="panel">
+      <h2>Evidence categories</h2>
+      <table><thead><tr><th>Tag</th><th>Meaning</th><th>Present in this project</th></tr></thead><tbody>
+        ${["A","B","C","D","E"].map(c => `<tr>
+          <td>${catPill(c)}</td><td>${esc(CAT_DESC[c])}</td>
+          <td>${(d.categories_used || []).includes(c)
+            ? '<span class="pill p-pass">✓ yes</span>'
+            : '<span class="pill p-fail">✕ none — declared empty</span>'}</td></tr>`).join("")}
+      </tbody></table>
+      <p class="note" style="margin-top:10px">${esc(d.category_e_note || "")}</p>
+    </div>
+
+    <div class="panel">
+      <h2>Governing equations as implemented</h2>
+      <table><thead><tr><th>Path</th><th>Equation</th><th>Basis</th></tr></thead><tbody>
+        ${(d.governing_equations || []).map(g => `<tr>
+          <td>${esc(g.path)}</td><td><code>${esc(g.equation)}</code></td>
+          <td class="note">${esc(g.basis)}</td></tr>`).join("")}
+      </tbody></table>
+    </div>
+
+    <div class="panel">
+      <h2>Benchmark summary</h2>
+      <div class="kpis">
+        <div class="kpi"><div class="k">Benchmarks</div><div class="v">${bs.benchmarks}</div></div>
+        <div class="kpi"><div class="k">Individual checks</div><div class="v">${bs.checks}</div></div>
+        <div class="kpi"><div class="k">Failed checks</div>
+          <div class="v">${(bs.failed_checks || []).length}</div>
+          <div class="n">${(bs.failed_checks || []).length === 0 ? "✓ none" : "✕ see report"}</div></div>
+        <div class="kpi"><div class="k">Category E results</div><div class="v">${bs.category_e_count}</div>
+          <div class="n">no physical test was run</div></div>
+      </div>
+      <p class="note" style="margin-top:10px">${esc(bs.note || "")}</p>
+    </div>
+
+    ${(d.benchmarks || []).map(b => {
+      let table = "";
+      const it = b.items || [];
+      if (it.length && "dt_s" in it[0]) {
+        table = `<table><thead><tr><th>dt (s)</th><th class="num">engine (°C)</th>
+          <th class="num">analytical (°C)</th><th class="num">abs error (°C)</th><th class="num">rel error (%)</th></tr></thead><tbody>
+          ${it.map(r => `<tr><td>${r.dt_s}</td><td class="num">${fmt(r.engine_c, 6)}</td>
+            <td class="num">${fmt(r.analytical_c, 6)}</td><td class="num">${r.abs_error_c >= 0 ? "+" : ""}${fmt(r.abs_error_c, 6)}</td>
+            <td class="num">${fmt(r.rel_error_pct, 6)}</td></tr>`).join("")}</tbody></table>
+          ${b.conditions.observed_order_of_convergence !== undefined ? `<p class="note" style="margin-top:8px">
+            Measured order of convergence: <b>${b.conditions.observed_order_of_convergence}</b>
+            against an expected <b>${b.conditions.expected_order}</b> for forward Euler.
+            ${esc(b.conditions.order_note || "")}</p>` : ""}`;
+      } else if (it.length && "check" in it[0]) {
+        table = `<table><thead><tr><th>Check</th><th>Expected</th><th>Observed</th><th>Result</th></tr></thead><tbody>
+          ${it.map(r => `<tr><td>${esc(r.check)}</td><td class="note">${esc(String(r.expected))}</td>
+            <td>${esc(String(r.observed))}</td>
+            <td>${r.pass ? '<span class="pill p-pass">✓ pass</span>' : '<span class="pill p-fail">✕ fail</span>'}</td></tr>`).join("")}
+          </tbody></table>`;
+      } else if (it.length && "altitude_km" in it[0]) {
+        table = `<table><thead><tr><th>Alt (km)</th><th class="num">ref T (°C)</th><th class="num">engine T (°C)</th>
+          <th class="num">|ΔT|</th><th class="num">ref p (hPa)</th><th class="num">engine p (hPa)</th><th class="num">|Δp| %</th></tr></thead><tbody>
+          ${it.map(r => `<tr><td>${r.altitude_km}</td><td class="num">${fmt(r.ref_temperature_c, 2)}</td>
+            <td class="num">${fmt(r.engine_temperature_c, 2)}</td><td class="num">${fmt(r.temperature_abs_error_c, 4)}</td>
+            <td class="num">${fmt(r.ref_pressure_hpa, 2)}</td><td class="num">${fmt(r.engine_pressure_hpa, 2)}</td>
+            <td class="num">${fmt(r.pressure_rel_error_pct, 4)}</td></tr>`).join("")}</tbody></table>`;
+      } else if (it.length && "t_skin_c" in it[0]) {
+        table = `<table><thead><tr><th>T skin (°C)</th><th>T radiant (°C)</th><th class="num">engine (W)</th>
+          <th class="num">analytical (W)</th><th class="num">abs error (W)</th><th>direction</th></tr></thead><tbody>
+          ${it.map(r => `<tr><td>${r.t_skin_c}</td><td>${r.t_radiant_c}</td>
+            <td class="num">${r.engine_w.toExponential(6)}</td><td class="num">${r.analytical_w.toExponential(6)}</td>
+            <td class="num">${r.abs_error_w.toExponential(2)}</td><td>${esc(r.direction)}</td></tr>`).join("")}</tbody></table>`;
+      } else if (it.length && "ambient_c" in it[0]) {
+        table = `<table><thead><tr><th>Ambient (°C)</th><th>Ins (mm)</th><th class="num">engine (°C)</th>
+          <th class="num">independent (°C)</th><th class="num">abs error</th><th>note</th></tr></thead><tbody>
+          ${it.map(r => `<tr><td>${r.ambient_c}</td><td>${r.insulation_mm}</td>
+            <td class="num">${fmt(r.engine_c, 4)}</td><td class="num">${fmt(r.independent_c, 4)}</td>
+            <td class="num">${r.abs_error_c.toExponential(2)}</td>
+            <td>${r.above_max_operating_c ? '<span class="pill p-warn">above 60 °C limit</span>' : ""}</td></tr>`).join("")}</tbody></table>`;
+      } else if (it.length && "parameter" in it[0]) {
+        table = `<table><thead><tr><th>Parameter</th><th>Value</th><th>Basis</th><th>Impact</th>
+          <th class="num">Exploratory range</th></tr></thead><tbody>
+          ${it.map(r => `<tr><td>${esc(r.parameter)}</td><td>${esc(r.value)}</td>
+            <td class="note">${esc(r.basis)}</td><td class="note">${esc(r.impact)}</td>
+            <td class="num">${r.exploratory_range_low} … ${r.exploratory_range_high}</td></tr>`).join("")}</tbody></table>`;
+      }
+      return `<div class="panel">
+        <h2>${catPill(b.category)} ${esc(b.id)} — ${esc(b.title)}</h2>
+        <p class="note">${esc(b.category_label)} · ${esc(b.method)}</p>
+        <p class="note"><b>Reference:</b> ${esc(b.reference)}</p>
+        ${table}
+        <h3 style="margin-top:12px">Limitations of this benchmark</h3>
+        <ul class="plain">${(b.limitations || []).map(l => `<li>${esc(l)}</li>`).join("")}</ul>
+      </div>`;
+    }).join("")}
+
+    <div class="panel">
+      <h2>${catPill("C")} Energy-conservation audit</h2>
+      <p class="note">${esc(t2.sign_convention)}</p>
+      <p class="note">Tolerance: ${t2.tolerance_wh} Wh.</p>
+      <table><thead><tr><th>Design</th><th>Verdict</th><th class="num">Storage drop</th>
+        <th class="num">Payload</th><th class="num">Heater</th><th class="num">Residual</th><th>Balanced</th></tr></thead><tbody>
+        ${t2.rows.map(r => `<tr><td>${esc(r.design)}</td><td>${esc(r.verdict)}</td>
+          <td class="num">${fmt(r.storage_drop_wh, 4)}</td><td class="num">${fmt(r.payload_delivered_wh, 4)}</td>
+          <td class="num">${fmt(r.heater_delivered_wh, 4)}</td>
+          <td class="num">${r.electrical_residual_wh.toExponential(2)}</td>
+          <td>${r.electrical_pass ? '<span class="pill p-pass">✓ yes</span>' : '<span class="pill p-fail">✕ no</span>'}</td></tr>`).join("")}
+      </tbody></table>
+      <h3 style="margin-top:12px">State consistency scan</h3>
+      <table><thead><tr><th>Design</th><th class="num">Points</th><th class="num">Violations</th><th>Clean</th></tr></thead><tbody>
+        ${t2.rows.map(r => `<tr><td>${esc(r.design)}</td><td class="num">${r.state_audit.points_scanned}</td>
+          <td class="num">${(r.state_audit.violations || []).length}</td>
+          <td>${r.state_audit.clean ? '<span class="pill p-pass">✓ clean</span>' : '<span class="pill p-fail">✕ violations</span>'}</td></tr>`).join("")}
+      </tbody></table>
+      <p class="note" style="margin-top:10px">${esc(t2.note_thermal)}</p>
+      <h3 style="margin-top:12px">Defects found and fixed</h3>
+      <table><thead><tr><th>ID</th><th>Defect</th><th>Cause</th><th>Fix</th></tr></thead><tbody>
+        ${(t2.defects_found_and_fixed || []).map(x => `<tr><td><b>${esc(x.id)}</b></td>
+          <td class="note">${esc(x.defect)}</td><td class="note">${esc(x.cause)}</td>
+          <td class="note">${esc(x.fix)}</td></tr>`).join("")}
+      </tbody></table>
+    </div>
+
+    <div class="panel">
+      <h2>${catPill("D")} Battery model</h2>
+      <ul class="plain">${t3.equations.map(e => `<li><code>${esc(e)}</code></li>`).join("")}</ul>
+      <div class="banner b-cache" style="margin-top:10px">${esc(t3.source_status)}</div>
+      <table><thead><tr><th>Consistency check</th><th>Expected</th><th>Got</th><th>Result</th></tr></thead><tbody>
+        ${t3.consistency_checks.map(c => `<tr><td>${esc(c.check)}</td>
+          <td>${esc(String(c.expected_wh !== undefined ? c.expected_wh : c.expected_w))}</td>
+          <td>${esc(String(c.got_wh !== undefined ? c.got_wh : c.got_w))}</td>
+          <td>${c.pass ? '<span class="pill p-pass">✓ pass</span>' : '<span class="pill p-fail">✕ fail</span>'}</td></tr>`).join("")}
+      </tbody></table>
+      <h3 style="margin-top:12px">Unmeasured parameters</h3>
+      <ul class="plain">${t3.unmeasured_parameters.map(u => `<li>${esc(u)}</li>`).join("")}</ul>
+    </div>
+
+    <div class="panel">
+      <h2>${catPill("C")} Numerical convergence</h2>
+      <p class="note">${esc(t4.comparison_note)}</p>
+      ${t4.results.map(r => `<h3 style="margin-top:12px">${esc(r.scenario)}</h3>
+        <table><thead><tr><th>dt (s)</th><th>Verdict</th><th>Failure</th>
+          <th class="num">ΔT min vs finest (°C)</th><th class="num">Δ charge vs finest (Wh)</th></tr></thead><tbody>
+        ${r.rows.map(x => `<tr><td>${x.dt_s}</td><td>${esc(x.verdict)}</td><td>${esc(x.failure_time || "—")}</td>
+          <td class="num">${fmt(x.d_min_box_c_vs_finest, 4)}</td>
+          <td class="num">${fmt(x.d_final_charge_wh_vs_finest, 5)}</td></tr>`).join("")}
+        </tbody></table>
+        <p class="note" style="margin-top:6px">
+          Verdict stable: <b>${r.verdict_stable ? "yes" : "NO"}</b> ·
+          Failure reason stable: <b>${r.failure_reason_stable ? "yes" : "NO"}</b> ·
+          Failure-time spread: <b>${fmt(r.failure_time_spread_min, 2)} min</b> ·
+          Min-temperature spread: <b>${fmt(r.min_temp_spread_c, 4)} °C</b> ·
+          Measured order: <b>${r.order_estimate}</b>
+        </p>
+        <p class="note">${esc(r.failure_time_quantisation_note || "")}</p>`).join("")}
+    </div>
+
+    <div class="panel">
+      <h2>${catPill("D")} Parameter uncertainty</h2>
+      <div class="banner b-cache">${esc(t6.disclaimer)}</div>
+      <table><thead><tr><th>Axis</th><th>Baseline</th><th class="num">Values swept</th><th>Basis</th></tr></thead><tbody>
+        ${Object.values(t6.axes).map(a => `<tr><td>${esc(a.label)}</td><td>${a.baseline}</td>
+          <td class="num">${a.values.join(", ")}</td><td class="note">${esc(a.basis)}</td></tr>`).join("")}
+      </tbody></table>
+      <h3 style="margin-top:12px">Combined worst case</h3>
+      <table><thead><tr><th>Design</th><th>Verdict</th><th>Failure</th><th>Time</th>
+        <th class="num">Min T (°C)</th><th class="num">Margin</th></tr></thead><tbody>
+        ${Object.entries(t6.combined_worst_case).map(([k, v]) => `<tr>
+          <td>${esc(k)}</td>
+          <td>${v.verdict === "PASS" ? '<span class="pill p-pass">✓ PASS</span>' : `<span class="pill p-fail">✕ ${esc(v.failure_reason || "")}</span>`}</td>
+          <td>${esc(v.failure_time || "—")}</td><td class="num">${fmt(v.min_box_c, 1)}</td>
+          <td class="num">${fmt(v.energy_margin_ratio, 2)}×</td></tr>`).join("")}
+      </tbody></table>
+      <h3 style="margin-top:12px">Does the recommendation survive?</h3>
+      ${t6.ranking_survives
+        ? `<div class="banner b-live"><b>✓ Ranking stable.</b> The robust design never fails while the cheapest-passing design survives, across every swept value.</div>`
+        : `<div class="banner b-isa"><b>✕ Ranking is NOT stable.</b> ${t6.ranking_flips.length} combination(s) invert the ordering:
+           ${t6.ranking_flips.map(f => `${esc(f.axis)} = ${f.value} (${esc(f.change)})`).join("; ")}.
+           Any recommendation must be quoted with this condition attached.</div>`}
+    </div>
+
+    <div class="panel">
+      <h2>Unresolved defects and limitations</h2>
+      <ul class="plain">${(d.unresolved || []).map(u => `<li>${esc(u)}</li>`).join("")}</ul>
+    </div>`;
+}
+
+/* =====================================================================
+   Boot
+   ===================================================================== */
+(function boot() {
+  syncCtrls();
+  $("c-date").value = new Date().toISOString().slice(0, 10);
+  const saved = new URLSearchParams(location.search);
+  if (saved.get("cells")) { for (const [k, v] of saved) { const i = $("c-" + k.replace("_mm", "").replace("payload_load_w", "load")); if (i) i.value = v; } }
+  ["c-cells", "c-ins", "c-sp", "c-hp", "c-load", "c-pan", "c-minop"].forEach(id =>
+    $(id).addEventListener("input", () => {
+      for (const k in ctrls) { const i = $(ctrls[k].id); if (i) i.dispatchEvent(new Event("input")); }
+    }));
+  syncCtrls();
+  // health check on load so the data state is visible before the first run.
+  // Guarded: if fetch is unavailable the page must still be usable.
+  if (typeof fetch !== "function") return;
+  fetch("/api/health").then(r => r.json()).then(h => {
+    const g = h.open_meteo_gfs || {};
+    if (!g.ok) {
+      $("run-result").innerHTML = `<div class="banner b-isa"><b>Data feeds are not reachable right now.</b><br>
+        ${esc(g.error || "unknown error")}<br><span class="note">The app will not invent weather data.
+        If a cached copy exists it will be used and clearly labelled CACHED.</span></div>`;
+    }
+  }).catch(() => { });
+})();
+</script>
+</body>
+</html>

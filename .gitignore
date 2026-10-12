@@ -1,0 +1,57 @@
+# ============================================================
+#  COLDSTART — git ignore rules
+#  Deliberately NOT ignored: audit/, verify/, tests/, app/.
+#  Those are evidence and source; they must always be committed.
+# ============================================================
+
+# ---- Python bytecode and tool caches ----
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+htmlcov/
+
+# ---- virtual environments ----
+.venv/
+venv/
+env/
+ENV/
+
+# ---- node ----
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnpm-store/
+
+# ---- cache and temp folders ----
+# NOTE: cache/ holds real API responses used as the OFFLINE fallback.
+# It is ignored as a cache folder, which means a fresh clone starts with
+# no offline data and will need network on first run. Say the word if you
+# would rather track it for the demo-day no-wifi case.
+cache/
+.cache/
+tmp/
+temp/
+*.tmp
+*.temp
+*~
+
+# ---- build output ----
+build/
+dist/
+*.egg-info/
+
+# ---- editor and OS noise ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# ---- logs ----
+*.log

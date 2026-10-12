@@ -1,0 +1,1786 @@
+{
+  "generated_utc": "2026-10-12T05:08:19Z",
+  "engine_version": "coldstart-engine-1.0",
+  "provenance": "LIVE",
+  "site": {
+    "lat": 13.0067,
+    "lon": 80.257,
+    "date": "2026-10-12",
+    "launch_local": "2026-10-12 18:00 IST"
+  },
+  "categories_used": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "category_e_note": "Category E is deliberately empty. No physical bench test, no flown payload and no laboratory measurement was performed for this project. Every thermal and electrical result here is analytical, computational or assumed.",
+  "governing_equations": [
+    {
+      "path": "Conduction",
+      "equation": "UA_cond = (k / t) * A, q = UA_cond * (T_box - T_skin)",
+      "basis": "Fourier steady conduction through a plane wall."
+    },
+    {
+      "path": "Convection",
+      "equation": "h = h0 * sqrt(p(alt)/p(0)), q = h A (T_skin - T_amb)",
+      "basis": "Natural convection; h0 an assumed small-enclosure value (category D), scaled by the square root of the pressure ratio."
+    },
+    {
+      "path": "Radiation",
+      "equation": "q = eps * sigma * A * (T_skin^4 - T_rad^4), T_rad = T_amb - offset",
+      "basis": "Stefan-Boltzmann. The offset collapses Earth/horizon/space view factors into one parameter (category D)."
+    },
+    {
+      "path": "Skin closure",
+      "equation": "UA_cond (T_box - T_skin) = h A (T_skin - T_amb) + eps sigma A (T_skin^4 - T_rad^4)",
+      "basis": "Conduction and surface loss are IN SERIES. Solved each step by bisection."
+    },
+    {
+      "path": "Lumped node",
+      "equation": "C_th dT/dt = Q_heater + Q_selfheat - q_loss",
+      "basis": "Lumped-capacitance. C_th sums pack, insulation and housing mass x cp."
+    },
+    {
+      "path": "Solar (electrical only)",
+      "equation": "P_pv = I_direct(alt, elevation) * A_panel * eta * view",
+      "basis": "Beer-Lambert attenuation of extraterrestrial irradiance. Solar HEATING of the box structure is NOT modelled \u2014 see limitations."
+    },
+    {
+      "path": "Internal heat generation",
+      "equation": "Q_selfheat = PAYLOAD_HEAT_FRACTION * delivered_payload_power",
+      "basis": "Assumed fraction (category D), applied to DELIVERED power only."
+    },
+    {
+      "path": "Battery",
+      "equation": "usable = charge - nominal*(1 - f(T));  P_max = C_rate * Ah * V",
+      "basis": "Capacity curve is an assumption (category D)."
+    }
+  ],
+  "benchmarks": [
+    {
+      "id": "A1",
+      "title": "Lumped-capacitance decay vs closed-form solution",
+      "category": "A",
+      "category_label": "Analytical verification -- compared against a closed-form solution",
+      "method": "Forward Euler advanced to a fixed final time at four timesteps and compared with the closed-form solution. Error must fall as dt falls.",
+      "conditions": {
+        "insulation_mm": 50.0,
+        "cells": 8,
+        "area_m2": 0.0864,
+        "k_ins_w_per_mk": 0.03,
+        "altitude_km": 26.0,
+        "t_initial_c": 20.0,
+        "t_ambient_c": -55.0,
+        "heat_input_w": 0.0,
+        "duration_s": 7200.0,
+        "emissivity": 0.0,
+        "ua_eff_w_per_k_hand_derived": 0.03336218,
+        "c_th_j_per_k": 772.56,
+        "tau_s": 23156.761,
+        "observed_order_of_convergence": 1.001,
+        "expected_order": 1.0,
+        "order_note": "Forward Euler is first-order. The observed order is measured against the exact closed form, so unlike the mission-level study in app/verify.py this reference is not itself an approximation."
+      },
+      "reference": "T(t) = T_inf + (T0 - T_inf) exp(-t/tau), with UA_eff derived by hand as a series combination of conduction and convection.",
+      "items": [
+        {
+          "dt_s": 60.0,
+          "engine_c": -0.064471,
+          "analytical_c": -0.0423,
+          "abs_error_c": -0.022171,
+          "rel_error_pct": -0.040342
+        },
+        {
+          "dt_s": 30.0,
+          "engine_c": -0.053377,
+          "analytical_c": -0.0423,
+          "abs_error_c": -0.011077,
+          "rel_error_pct": -0.020156
+        },
+        {
+          "dt_s": 10.0,
+          "engine_c": -0.045991,
+          "analytical_c": -0.0423,
+          "abs_error_c": -0.003691,
+          "rel_error_pct": -0.006715
+        },
+        {
+          "dt_s": 5.0,
+          "engine_c": -0.044145,
+          "analytical_c": -0.0423,
+          "abs_error_c": -0.001845,
+          "rel_error_pct": -0.003357
+        }
+      ],
+      "limitations": [
+        "Exact only because radiation is disabled; the radiative term is not exercised by this benchmark.",
+        "UA_eff is treated as constant, so this does NOT verify the altitude-varying convection or the temperature-dependent terms.",
+        "This verifies the integrator and the conduction/convection network. It says nothing about whether k = 0.030 W/m/K is the real value for the box (category D)."
+      ]
+    },
+    {
+      "id": "A2",
+      "title": "Stefan-Boltzmann radiation against the exact expression",
+      "category": "A",
+      "category_label": "Analytical verification -- compared against a closed-form solution",
+      "method": "Direct comparison of the implementation with the closed-form expression.",
+      "conditions": {
+        "area_m2": 0.0864,
+        "emissivity": 0.9,
+        "sigma_w_m2_k4": 5.670374419e-08
+      },
+      "reference": "q = eps * sigma * A * (T_skin^4 - T_radiant^4)",
+      "items": [
+        {
+          "t_skin_c": 20.0,
+          "t_radiant_c": -60.0,
+          "engine_w": 23.4618141589,
+          "analytical_w": 23.4618141589,
+          "abs_error_w": 0.0,
+          "rel_error_pct": 0.0,
+          "direction": "loses heat"
+        },
+        {
+          "t_skin_c": 0.0,
+          "t_radiant_c": -60.0,
+          "engine_w": 15.4441284813,
+          "analytical_w": 15.4441284813,
+          "abs_error_w": 0.0,
+          "rel_error_pct": 0.0,
+          "direction": "loses heat"
+        },
+        {
+          "t_skin_c": -40.0,
+          "t_radiant_c": -60.0,
+          "engine_w": 3.9275337274,
+          "analytical_w": 3.9275337274,
+          "abs_error_w": 0.0,
+          "rel_error_pct": 0.0,
+          "direction": "loses heat"
+        },
+        {
+          "t_skin_c": -60.0,
+          "t_radiant_c": -60.0,
+          "engine_w": 0.0,
+          "analytical_w": 0.0,
+          "abs_error_w": 0.0,
+          "rel_error_pct": 0.0,
+          "direction": "balanced"
+        }
+      ],
+      "limitations": [
+        "Verifies the arithmetic, not the view factors. The real payload sees Earth and horizon as well as space; that is collapsed into a single assumed radiant temperature offset (category D).",
+        "Assumes the skin is isothermal and grey."
+      ]
+    },
+    {
+      "id": "A3",
+      "title": "Equilibrium solver vs an independent root find",
+      "category": "A",
+      "category_label": "Analytical verification -- compared against a closed-form solution",
+      "method": "Engine bisection compared with an independent bisection written in this file, plus the residual at the returned root.",
+      "conditions": {
+        "altitude_km": 26.0,
+        "emissivity": 0.9,
+        "radiant_offset_c": 10.0
+      },
+      "reference": "Solve (Q_heater + Q_selfheat) = q_loss(T_eq)",
+      "items": [
+        {
+          "ambient_c": -70.0,
+          "insulation_mm": 25.0,
+          "heater_w": 5.0,
+          "self_heat_w": 1.8,
+          "engine_c": 16.03956,
+          "independent_c": 16.03956,
+          "abs_error_c": 0.0,
+          "residual_at_solution_w": 0.0,
+          "root_bracketed": true,
+          "above_max_operating_c": false,
+          "pass": true
+        },
+        {
+          "ambient_c": -70.0,
+          "insulation_mm": 50.0,
+          "heater_w": 5.0,
+          "self_heat_w": 1.8,
+          "engine_c": 81.625979,
+          "independent_c": 81.625979,
+          "abs_error_c": 0.0,
+          "residual_at_solution_w": -0.0,
+          "root_bracketed": true,
+          "above_max_operating_c": true,
+          "pass": true
+        },
+        {
+          "ambient_c": -70.0,
+          "insulation_mm": 75.0,
+          "heater_w": 5.0,
+          "self_heat_w": 1.8,
+          "engine_c": 147.212399,
+          "independent_c": 147.212399,
+          "abs_error_c": 0.0,
+          "residual_at_solution_w": -0.0,
+          "root_bracketed": true,
+          "above_max_operating_c": true,
+          "pass": true
+        },
+        {
+          "ambient_c": -55.0,
+          "insulation_mm": 25.0,
+          "heater_w": 5.0,
+          "self_heat_w": 1.8,
+          "engine_c": 27.598924,
+          "independent_c": 27.598924,
+          "abs_error_c": 0.0,
+          "residual_at_solution_w": 0.0,
+          "root_bracketed": true,
+          "above_max_operating_c": false,
+          "pass": true
+        },
+        {
+          "ambient_c": -55.0,
+          "insulation_mm": 50.0,
+          "heater_w": 5.0,
+          "self_heat_w": 1.8,
+          "engine_c": 93.185344,
+          "independent_c": 93.185344,
+          "abs_error_c": 0.0,
+          "residual_at_solution_w": -0.0,
+          "root_bracketed": true,
+          "above_max_operating_c": true,
+          "pass": true
+        },
+        {
+          "ambient_c": -55.0,
+          "insulation_mm": 75.0,
+          "heater_w": 5.0,
+          "self_heat_w": 1.8,
+          "engine_c": 158.771764,
+          "independent_c": 158.771764,
+          "abs_error_c": 0.0,
+          "residual_at_solution_w": -0.0,
+          "root_bracketed": true,
+          "above_max_operating_c": true,
+          "pass": true
+        },
+        {
+          "ambient_c": -40.0,
+          "insulation_mm": 25.0,
+          "heater_w": 5.0,
+          "self_heat_w": 1.8,
+          "engine_c": 39.506756,
+          "independent_c": 39.506756,
+          "abs_error_c": 0.0,
+          "residual_at_solution_w": -0.0,
+          "root_bracketed": true,
+          "above_max_operating_c": false,
+          "pass": true
+        },
+        {
+          "ambient_c": -40.0,
+          "insulation_mm": 50.0,
+          "heater_w": 5.0,
+          "self_heat_w": 1.8,
+          "engine_c": 105.093176,
+          "independent_c": 105.093176,
+          "abs_error_c": 0.0,
+          "residual_at_solution_w": 0.0,
+          "root_bracketed": true,
+          "above_max_operating_c": true,
+          "pass": true
+        },
+        {
+          "ambient_c": -40.0,
+          "insulation_mm": 75.0,
+          "heater_w": 5.0,
+          "self_heat_w": 1.8,
+          "engine_c": 170.679595,
+          "independent_c": 170.679595,
+          "abs_error_c": 0.0,
+          "residual_at_solution_w": -0.0,
+          "root_bracketed": true,
+          "above_max_operating_c": true,
+          "pass": true
+        },
+        {
+          "ambient_c": -20.0,
+          "insulation_mm": 25.0,
+          "heater_w": 5.0,
+          "self_heat_w": 1.8,
+          "engine_c": 55.905271,
+          "independent_c": 55.905271,
+          "abs_error_c": 0.0,
+          "residual_at_solution_w": -0.0,
+          "root_bracketed": true,
+          "above_max_operating_c": false,
+          "pass": true
+        },
+        {
+          "ambient_c": -20.0,
+          "insulation_mm": 50.0,
+          "heater_w": 5.0,
+          "self_heat_w": 1.8,
+          "engine_c": 121.49169,
+          "independent_c": 121.49169,
+          "abs_error_c": 0.0,
+          "residual_at_solution_w": -0.0,
+          "root_bracketed": true,
+          "above_max_operating_c": true,
+          "pass": true
+        },
+        {
+          "ambient_c": -20.0,
+          "insulation_mm": 75.0,
+          "heater_w": 5.0,
+          "self_heat_w": 1.8,
+          "engine_c": 187.07811,
+          "independent_c": 187.07811,
+          "abs_error_c": 0.0,
+          "residual_at_solution_w": 0.0,
+          "root_bracketed": true,
+          "above_max_operating_c": true,
+          "pass": true
+        }
+      ],
+      "limitations": [
+        "Both solvers call the same heat_loss_w routine, so this verifies the root-finding, not the loss model itself.",
+        "Equilibrium assumes the ambient is constant, which a real ascent is not. The bench protocol in bench/ measures this quantity, which is why it is the right comparison for a future physical test.",
+        "Several of these configurations equilibrate ABOVE the 60 C maximum operating temperature. That is not a solver error: a well-insulated box with a standing 5 W heater genuinely overheats. It is why the engine has a TEMP_ABOVE_OPERATING failure mode."
+      ]
+    },
+    {
+      "id": "A4",
+      "title": "Limiting cases and heat-flow direction",
+      "category": "A",
+      "category_label": "Analytical verification -- compared against a closed-form solution",
+      "method": "Direct evaluation of limiting cases with asserted expected behaviour.",
+      "conditions": {
+        "area_m2": 0.0864,
+        "k_ins": 0.03,
+        "altitude_km": 26.0
+      },
+      "reference": "Second law of thermodynamics and the monotonicity of a series conductance network.",
+      "items": [
+        {
+          "check": "flow direction",
+          "t_box_c": -10.0,
+          "t_ambient_c": -55.0,
+          "heat_flow_w": 2.23507,
+          "expected": "out",
+          "observed": "out",
+          "pass": true
+        },
+        {
+          "check": "flow direction",
+          "t_box_c": -55.0,
+          "t_ambient_c": -10.0,
+          "heat_flow_w": -1.708032,
+          "expected": "in",
+          "observed": "in",
+          "pass": true
+        },
+        {
+          "check": "flow direction",
+          "t_box_c": -55.0,
+          "t_ambient_c": -55.0,
+          "heat_flow_w": 0.275155,
+          "expected": "balanced",
+          "observed": "balanced",
+          "pass": true
+        },
+        {
+          "check": "skin bounded",
+          "t_box_c": 20.0,
+          "t_ambient_c": -55.0,
+          "t_skin_c": -48.531,
+          "t_radiant_c": -65.0,
+          "expected": "-66.0 <= t_skin <= 20.0",
+          "observed": -48.531,
+          "pass": true
+        },
+        {
+          "check": "skin bounded",
+          "t_box_c": 0.0,
+          "t_ambient_c": -55.0,
+          "t_skin_c": -51.5688,
+          "t_radiant_c": -65.0,
+          "expected": "-66.0 <= t_skin <= 0.0",
+          "observed": -51.5688,
+          "pass": true
+        },
+        {
+          "check": "skin bounded",
+          "t_box_c": -20.0,
+          "t_ambient_c": -55.0,
+          "t_skin_c": -54.6794,
+          "t_radiant_c": -65.0,
+          "expected": "-66.0 <= t_skin <= -20.0",
+          "observed": -54.6794,
+          "pass": true
+        },
+        {
+          "check": "skin bounded",
+          "t_box_c": -50.0,
+          "t_ambient_c": -55.0,
+          "t_skin_c": -59.4888,
+          "t_radiant_c": -65.0,
+          "expected": "-66.0 <= t_skin <= -50.0",
+          "observed": -59.4888,
+          "pass": true
+        },
+        {
+          "check": "monotonic in insulation",
+          "ua_by_thickness_w_per_k": [
+            0.181583,
+            0.075134,
+            0.043513,
+            0.030639,
+            0.023647
+          ],
+          "expected": "strictly decreasing",
+          "observed": "decreasing",
+          "pass": true
+        },
+        {
+          "check": "passive equilibrium matches closed-form skin balance",
+          "t_ambient_c": -60.0,
+          "t_radiant_c": -70.0,
+          "t_final_c": -66.190225,
+          "analytical_c": -66.190225,
+          "abs_error_c": 0.0,
+          "expected": "T settles at -66.190 C, i.e. BELOW ambient, not at it",
+          "observed": -66.1902,
+          "pass": true,
+          "note": "Radiative cooling to a sink colder than the air drives the box below ambient. Settling above ambient with zero heat input would violate the second law."
+        },
+        {
+          "check": "colder box gains heat",
+          "t_box_c": -70.0,
+          "t_ambient_c": -55.0,
+          "heat_flow_w": -0.373466,
+          "expected": "negative (gaining)",
+          "observed": "negative",
+          "pass": true
+        }
+      ],
+      "limitations": [
+        "These are invariants, not quantitative accuracy checks: they catch a sign error or a broken monotonicity, not a wrong magnitude.",
+        "The 'balanced' tolerance of +/-0.5 W exists because the radiant sink is colder than the air, so a box at air temperature still loses a little."
+      ]
+    },
+    {
+      "id": "B1",
+      "title": "Engine ISA vs published US Standard Atmosphere 1976",
+      "category": "B",
+      "category_label": "Independent reference comparison -- external published source",
+      "method": "Direct value-by-value comparison with the published reference table.",
+      "conditions": {
+        "engine_model": "linear lapse to 11 km, isothermal above",
+        "valid_range_claimed_km": "0-20"
+      },
+      "reference": "US Standard Atmosphere 1976 / ICAO ISA reference table (15 degC and 1013.25 hPa at sea level, 6.5 K/km to 11 km, 216.65 K isothermal above).",
+      "items": [
+        {
+          "altitude_km": 0.0,
+          "ref_temperature_c": 15.0,
+          "engine_temperature_c": 15.0,
+          "temperature_abs_error_c": 0.0,
+          "ref_pressure_hpa": 1013.25,
+          "engine_pressure_hpa": 1013.25,
+          "pressure_abs_error_hpa": 0.0,
+          "pressure_rel_error_pct": 0.0,
+          "units": "degC, hPa"
+        },
+        {
+          "altitude_km": 1.0,
+          "ref_temperature_c": 8.5,
+          "engine_temperature_c": 8.5,
+          "temperature_abs_error_c": 0.0,
+          "ref_pressure_hpa": 898.75,
+          "engine_pressure_hpa": 898.7452,
+          "pressure_abs_error_hpa": 0.0048,
+          "pressure_rel_error_pct": 0.0005,
+          "units": "degC, hPa"
+        },
+        {
+          "altitude_km": 2.0,
+          "ref_temperature_c": 2.0,
+          "engine_temperature_c": 2.0,
+          "temperature_abs_error_c": 0.0,
+          "ref_pressure_hpa": 795.01,
+          "engine_pressure_hpa": 794.9513,
+          "pressure_abs_error_hpa": 0.0587,
+          "pressure_rel_error_pct": 0.0074,
+          "units": "degC, hPa"
+        },
+        {
+          "altitude_km": 5.0,
+          "ref_temperature_c": -17.5,
+          "engine_temperature_c": -17.5,
+          "temperature_abs_error_c": 0.0,
+          "ref_pressure_hpa": 540.2,
+          "engine_pressure_hpa": 540.1976,
+          "pressure_abs_error_hpa": 0.0024,
+          "pressure_rel_error_pct": 0.0004,
+          "units": "degC, hPa"
+        },
+        {
+          "altitude_km": 10.0,
+          "ref_temperature_c": -50.0,
+          "engine_temperature_c": -50.0,
+          "temperature_abs_error_c": 0.0,
+          "ref_pressure_hpa": 264.36,
+          "engine_pressure_hpa": 264.3611,
+          "pressure_abs_error_hpa": 0.0011,
+          "pressure_rel_error_pct": 0.0004,
+          "units": "degC, hPa"
+        },
+        {
+          "altitude_km": 11.0,
+          "ref_temperature_c": -56.5,
+          "engine_temperature_c": -56.5,
+          "temperature_abs_error_c": 0.0,
+          "ref_pressure_hpa": 226.32,
+          "engine_pressure_hpa": 226.3191,
+          "pressure_abs_error_hpa": 0.0009,
+          "pressure_rel_error_pct": 0.0004,
+          "units": "degC, hPa"
+        },
+        {
+          "altitude_km": 15.0,
+          "ref_temperature_c": -56.5,
+          "engine_temperature_c": -56.5,
+          "temperature_abs_error_c": 0.0,
+          "ref_pressure_hpa": 120.45,
+          "engine_pressure_hpa": 120.4441,
+          "pressure_abs_error_hpa": 0.0059,
+          "pressure_rel_error_pct": 0.0049,
+          "units": "degC, hPa"
+        },
+        {
+          "altitude_km": 20.0,
+          "ref_temperature_c": -56.5,
+          "engine_temperature_c": -56.5,
+          "temperature_abs_error_c": 0.0,
+          "ref_pressure_hpa": 54.75,
+          "engine_pressure_hpa": 54.7477,
+          "pressure_abs_error_hpa": 0.0023,
+          "pressure_rel_error_pct": 0.0042,
+          "units": "degC, hPa"
+        }
+      ],
+      "limitations": [
+        "The engine is isothermal above 11 km, so it is exact through 20 km and DIVERGES above it: the real atmosphere warms from ~20 km and reaches 228.65 K at 32 km. The engine is not used as a data source above the forecast ceiling except as a declared fallback, and this table shows where that fallback is weakest.",
+        "ISA is a reference atmosphere, not a forecast for any particular night."
+      ]
+    },
+    {
+      "id": "D1",
+      "title": "Parameters that are assumed rather than verified",
+      "category": "D",
+      "category_label": "Assumption or exploratory scenario -- chosen, not verified",
+      "method": "Inventory of constants with their basis and sensitivity.",
+      "conditions": {
+        "count": 8
+      },
+      "reference": "No external source was measured or tested. Each entry records where the value came from and which part of the result it moves.",
+      "items": [
+        {
+          "parameter": "Insulation conductivity k",
+          "value": "0.030 W/m/K",
+          "basis": "Typical published value for XPS foam",
+          "impact": "Directly scales UA and therefore every thermal time. UNVALIDATED.",
+          "exploratory_range_low": 0.018,
+          "exploratory_range_high": 0.045
+        },
+        {
+          "parameter": "Box surface area",
+          "value": "0.0864 m2",
+          "basis": "12 x 12 x 12 cm outer envelope",
+          "impact": "Linear in UA. A different box changes everything.",
+          "exploratory_range_low": 0.06,
+          "exploratory_range_high": 0.12
+        },
+        {
+          "parameter": "Surface emissivity",
+          "value": "0.90",
+          "basis": "Typical for foam / tape / paint",
+          "impact": "Scales the radiative term, which dominates at 26 km.",
+          "exploratory_range_low": 0.8,
+          "exploratory_range_high": 0.95
+        },
+        {
+          "parameter": "Radiant temperature offset",
+          "value": "10 K below air",
+          "basis": "First-order stand-in for Earth + horizon + space view factors",
+          "impact": "The largest single modelling uncertainty in the loss path.",
+          "exploratory_range_low": 5.0,
+          "exploratory_range_high": 20.0
+        },
+        {
+          "parameter": "Natural convection coefficient h0",
+          "value": "5.0 W/m2/K",
+          "basis": "Typical small-enclosure value from heat-transfer texts",
+          "impact": "Weak at 26 km where convection is ~1.5% of sea level; matters low down.",
+          "exploratory_range_low": 3.0,
+          "exploratory_range_high": 8.0
+        },
+        {
+          "parameter": "Cell capacity vs temperature curve",
+          "value": "1.00 at 20 C to 0.35 at -60 C",
+          "basis": "Shape typical of Li-ion; NOT from a datasheet we hold",
+          "impact": "Sets how much of the pack is usable when cold.",
+          "exploratory_range_low": 0.25,
+          "exploratory_range_high": 0.45
+        },
+        {
+          "parameter": "Payload self-heating fraction",
+          "value": "0.60 of electrical load",
+          "basis": "Engineering estimate of electronics-to-heat",
+          "impact": "Warms the box; a conservative 0.0 turns cold margins pessimistic.",
+          "exploratory_range_low": 0.0,
+          "exploratory_range_high": 0.9
+        },
+        {
+          "parameter": "Thermostat hysteresis",
+          "value": "1.5 K",
+          "basis": "Typical for a simple controller",
+          "impact": "Small effect on total heater energy.",
+          "exploratory_range_low": 0.5,
+          "exploratory_range_high": 3.0
+        }
+      ],
+      "limitations": [
+        "The ranges shown are exploratory, chosen to bound engineering plausibility. They are NOT confidence intervals and are NOT derived from measurement.",
+        "Task 6 propagates the three highest-impact parameters and reports how the design ranking responds."
+      ]
+    }
+  ],
+  "benchmark_summary": {
+    "benchmarks": 6,
+    "analytical": 4,
+    "reference": 1,
+    "checks": 46,
+    "failed_checks": [],
+    "category_e_count": 0,
+    "note": "Category E is deliberately empty. No physical bench test, no flown payload and no laboratory measurement was performed for this project. Every thermal and electrical result here is analytical, computational or assumed."
+  },
+  "task2_energy": {
+    "category": "C",
+    "category_label": "Numerical / software verification -- convergence, invariants, regression",
+    "sign_convention": "Positive = energy LEAVING the battery, or heat ENTERING the payload node. Electrical: storage_drop + pv_into_cells + unmet_energy - payload_delivered - heater_delivered = residual. Thermal: heat_in - heat_lost + heat_gained - stored_change = residual.",
+    "tolerance_wh": 1e-06,
+    "note_thermal": "The thermal residual is identically zero for forward Euler: the scheme's own accumulation reproduces it term for term. It is a BOOKKEEPING CONSISTENCY identity, NOT an accuracy measure. Euler truncation error is quantified in Task 1 (analytical) and Task 4 (convergence).",
+    "defects_found_and_fixed": [
+      {
+        "id": "A10",
+        "defect": "Heater energy was booked at the COMMANDED power, not the power the pack actually delivered. When the pack hit its C-rate limit the reported heater consumption exceeded the energy the battery supplied.",
+        "cause": "heater_energy_wh accumulated heater_w (the thermostat request) while the pack was only able to supply p_max.",
+        "fix": "Delivered power is now split explicitly: payload first, heater from the remainder; all bookkeeping uses delivered values.",
+        "regression_test": "test_heater_energy_never_exceeds_delivered"
+      },
+      {
+        "id": "A11",
+        "defect": "Payload self-heating was computed from the commanded load even when the pack could not supply it, creating thermal energy from nothing.",
+        "cause": "payload_heat_w was computed once, outside the loop, from the design value.",
+        "fix": "payload_heat_w is now derived each step from delivered_payload_w.",
+        "regression_test": "test_self_heating_uses_delivered_power"
+      },
+      {
+        "id": "A12",
+        "defect": "Reported heat loss clamped negative flow to zero (max(0, q)), silently discarding every heat-GAIN interval and reconstructing the total from 1-minute samples instead of the integration itself.",
+        "cause": "post-hoc reconstruction in _heat_lost_wh.",
+        "fix": "heat flow is now accumulated in the loop from the same q that drove the step, split into heat_lost and heat_gained.",
+        "regression_test": "test_heat_gain_is_recorded"
+      }
+    ],
+    "rows": [
+      {
+        "design": "baseline_default",
+        "verdict": "FAIL",
+        "failure_reason": "ENERGY_DEPLETED",
+        "nominal_wh": 73.44,
+        "final_charge_wh": 29.8817,
+        "storage_drop_wh": 43.5583,
+        "payload_delivered_wh": 18.725,
+        "heater_delivered_wh": 24.8333,
+        "pv_into_cells_wh": 0.0,
+        "pv_rejected_wh": 0.0,
+        "electrical_residual_wh": 0.0,
+        "electrical_tolerance_wh": 1e-06,
+        "electrical_pass": true,
+        "thermal_heat_in_wh": 36.0683,
+        "thermal_heat_lost_wh": 41.3825,
+        "thermal_heat_gained_wh": 0.0,
+        "thermal_stored_change_wh": -5.3142,
+        "thermal_residual_wh": -0.0,
+        "thermal_residual_is_identity": true,
+        "unmet_demand_wh": 0.0,
+        "unmet_energy_wh": 0.0,
+        "clamp_activations": 0,
+        "state_audit": {
+          "checks_run": 8,
+          "points_scanned": 375,
+          "violations": [],
+          "violation_counts": {},
+          "clean": true
+        }
+      },
+      {
+        "design": "cheapest_passing",
+        "verdict": "PASS",
+        "failure_reason": null,
+        "nominal_wh": 73.44,
+        "final_charge_wh": 32.165,
+        "storage_drop_wh": 41.275,
+        "payload_delivered_wh": 41.275,
+        "heater_delivered_wh": 0.0,
+        "pv_into_cells_wh": 0.0,
+        "pv_rejected_wh": 0.0,
+        "electrical_residual_wh": 0.0,
+        "electrical_tolerance_wh": 1e-06,
+        "electrical_pass": true,
+        "thermal_heat_in_wh": 24.765,
+        "thermal_heat_lost_wh": 29.2994,
+        "thermal_heat_gained_wh": 0.0259,
+        "thermal_stored_change_wh": -4.5084,
+        "thermal_residual_wh": -0.0,
+        "thermal_residual_is_identity": true,
+        "unmet_demand_wh": 0.0,
+        "unmet_energy_wh": 0.0,
+        "clamp_activations": 0,
+        "state_audit": {
+          "checks_run": 8,
+          "points_scanned": 826,
+          "violations": [],
+          "violation_counts": {},
+          "clean": true
+        }
+      },
+      {
+        "design": "most_robust",
+        "verdict": "PASS",
+        "failure_reason": null,
+        "nominal_wh": 110.16,
+        "final_charge_wh": 94.3401,
+        "storage_drop_wh": 15.8199,
+        "payload_delivered_wh": 41.275,
+        "heater_delivered_wh": 0.0,
+        "pv_into_cells_wh": 25.4551,
+        "pv_rejected_wh": 0.0,
+        "electrical_residual_wh": 0.0,
+        "electrical_tolerance_wh": 1e-06,
+        "electrical_pass": true,
+        "thermal_heat_in_wh": 24.765,
+        "thermal_heat_lost_wh": 28.4151,
+        "thermal_heat_gained_wh": 0.0059,
+        "thermal_stored_change_wh": -3.6442,
+        "thermal_residual_wh": 0.0,
+        "thermal_residual_is_identity": true,
+        "unmet_demand_wh": 0.0,
+        "unmet_energy_wh": 0.0,
+        "clamp_activations": 0,
+        "state_audit": {
+          "checks_run": 8,
+          "points_scanned": 826,
+          "violations": [],
+          "violation_counts": {},
+          "clean": true
+        }
+      }
+    ]
+  },
+  "task3_battery": {
+    "category": "D",
+    "category_label": "Assumption or exploratory scenario -- chosen, not verified",
+    "equations": [
+      "nominal_wh        = N_cells * wh_per_cell * capacity_mult",
+      "capacity_fraction = piecewise-linear interpolation of CAPACITY_VS_TEMP, clamped at the endpoints",
+      "usable_wh         = charge_wh - nominal_wh * (1 - capacity_fraction(T))",
+      "max_discharge_w   = C_rate_max * N_cells * (Ah per cell) * 3.6 V, only for T above the operating floor",
+      "step_charge       : new = charge - (P_out - P_pv * eta) * dt_h, clamped to [0, nominal]",
+      "can_accept_charge : T >= charge_min_c (0 C)"
+    ],
+    "curve_points": [
+      {
+        "temp_c": -60,
+        "fraction": 0.35
+      },
+      {
+        "temp_c": -40,
+        "fraction": 0.45
+      },
+      {
+        "temp_c": -20,
+        "fraction": 0.6
+      },
+      {
+        "temp_c": -10,
+        "fraction": 0.7
+      },
+      {
+        "temp_c": 0,
+        "fraction": 0.85
+      },
+      {
+        "temp_c": 20,
+        "fraction": 1.0
+      }
+    ],
+    "consistency_checks": [
+      {
+        "check": "nominal energy from cell count",
+        "expected_wh": 97.92,
+        "got_wh": 97.92,
+        "pass": true,
+        "units": "Wh"
+      },
+      {
+        "check": "usable at 20 C equals nominal",
+        "expected_wh": 97.92,
+        "got_wh": 97.92,
+        "pass": true,
+        "units": "Wh"
+      },
+      {
+        "check": "usable at -60 C equals 35 percent of nominal",
+        "expected_wh": 34.272,
+        "got_wh": 34.272,
+        "pass": true,
+        "units": "Wh"
+      },
+      {
+        "check": "C-rate ceiling = C_rate x amp-hours x volts",
+        "expected_w": 97.92,
+        "got_w": 97.92,
+        "pass": true,
+        "units": "W"
+      },
+      {
+        "check": "no discharge below the operating floor",
+        "expected_w": 0.0,
+        "got_w": 0.0,
+        "pass": true,
+        "units": "W"
+      },
+      {
+        "check": "charge inhibited below 0 C and reported, not lost",
+        "expected_w": "accepted 0.0 / rejected 5.0",
+        "got_w": "accepted 0.0 / rejected 5.0",
+        "pass": true,
+        "units": "W"
+      }
+    ],
+    "source_status": "The capacity-vs-temperature curve is an ASSUMPTION. It is shaped like commonly published Li-ion behaviour but is NOT taken from a datasheet held for the specific cells used, and NO cell was tested at any temperature. Do not describe it as datasheet-verified.",
+    "unmeasured_parameters": [
+      "Capacity at each temperature below 20 C",
+      "Internal resistance vs temperature (affects the C-rate ceiling in the cold)",
+      "Cell-to-cell capacity spread within the pack",
+      "Ageing and cycle history of the actual cells"
+    ],
+    "required_before_any_flight_claim": "A datasheet for the exact cell part number, and ideally a discharge test at low temperature. Until then the battery model is category D."
+  },
+  "task4_convergence": {
+    "category": "C",
+    "category_label": "Numerical / software verification -- convergence, invariants, regression",
+    "reference_step_s": 5.0,
+    "comparison_note": "Differences are measured against the FINEST step tested (5 s), which is the best available estimate, not an exact solution. An exact solution exists only for benchmark A1.",
+    "results": [
+      {
+        "scenario": "default_fails_energy",
+        "design": {
+          "cells": 6,
+          "insulation_mm": 10,
+          "heater_setpoint_c": -10,
+          "heater_max_w": 5.0,
+          "box_area_m2": 0.0864,
+          "payload_load_w": 3.0,
+          "k_ins": 0.03
+        },
+        "rows": [
+          {
+            "dt_s": 60.0,
+            "verdict": "FAIL",
+            "failure_reason": "ENERGY_DEPLETED",
+            "failure_time": "00:14",
+            "failure_minute": 374.0,
+            "min_box_c": -17.9,
+            "min_box_c_raw": -17.876594475683127,
+            "final_box_c_raw": -10.820790014543991,
+            "final_charge_wh": 29.857,
+            "survival_hours": 6.23,
+            "energy_margin_ratio": 0.98,
+            "electrical_residual_wh": -0.0,
+            "d_min_box_c_vs_finest": -0.2,
+            "d_final_charge_wh_vs_finest": 0.178,
+            "d_failure_min_vs_finest": -1.42
+          },
+          {
+            "dt_s": 30.0,
+            "verdict": "FAIL",
+            "failure_reason": "ENERGY_DEPLETED",
+            "failure_time": "00:14",
+            "failure_minute": 374.0,
+            "min_box_c": -17.7,
+            "min_box_c_raw": -17.694870063919435,
+            "final_box_c_raw": -10.791723158991697,
+            "final_charge_wh": 29.882,
+            "survival_hours": 6.23,
+            "energy_margin_ratio": 0.99,
+            "electrical_residual_wh": 0.0,
+            "d_min_box_c_vs_finest": 0.0,
+            "d_final_charge_wh_vs_finest": 0.203,
+            "d_failure_min_vs_finest": -1.42
+          },
+          {
+            "dt_s": 10.0,
+            "verdict": "FAIL",
+            "failure_reason": "ENERGY_DEPLETED",
+            "failure_time": "00:15",
+            "failure_minute": 375.0,
+            "min_box_c": -17.7,
+            "min_box_c_raw": -17.692228935922948,
+            "final_box_c_raw": -10.552336878859528,
+            "final_charge_wh": 29.751,
+            "survival_hours": 6.25,
+            "energy_margin_ratio": 1.0,
+            "electrical_residual_wh": 0.0,
+            "d_min_box_c_vs_finest": 0.0,
+            "d_final_charge_wh_vs_finest": 0.072,
+            "d_failure_min_vs_finest": -0.42
+          },
+          {
+            "dt_s": 5.0,
+            "verdict": "FAIL",
+            "failure_reason": "ENERGY_DEPLETED",
+            "failure_time": "00:15",
+            "failure_minute": 375.4166666666667,
+            "min_box_c": -17.7,
+            "min_box_c_raw": -17.66249736680633,
+            "final_box_c_raw": -10.435552945419555,
+            "final_charge_wh": 29.679,
+            "survival_hours": 6.26,
+            "energy_margin_ratio": 1.0,
+            "electrical_residual_wh": 0.0,
+            "d_min_box_c_vs_finest": 0.0,
+            "d_final_charge_wh_vs_finest": 0.0,
+            "d_failure_min_vs_finest": 0.0
+          }
+        ],
+        "verdict_stable": true,
+        "failure_reason_stable": true,
+        "failure_time_spread_min": 1.42,
+        "min_temp_spread_c": 0.2,
+        "worst_min_temp_change_c": 0.2,
+        "raw_min_temp_errors_c": [
+          0.214097109,
+          0.032372697,
+          0.029731569,
+          0.0
+        ],
+        "observed_orders": [
+          2.725,
+          0.123
+        ],
+        "order_estimate": 1.42,
+        "failure_time_quantisation_min": 1.0,
+        "failure_time_quantisation_note": "A failure can only be detected at the end of a step, so the reported depletion instant is quantised by +/- dt. A failure-time shift smaller than this is not evidence of divergence."
+      },
+      {
+        "scenario": "cheapest_passing",
+        "design": {
+          "cells": 6,
+          "insulation_mm": 75,
+          "heater_setpoint_c": null,
+          "heater_max_w": 5.0,
+          "box_area_m2": 0.0864,
+          "payload_load_w": 3.0,
+          "k_ins": 0.03
+        },
+        "rows": [
+          {
+            "dt_s": 60.0,
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 3.9,
+            "min_box_c_raw": 3.9231245605156237,
+            "final_box_c_raw": 6.117283284913538,
+            "final_charge_wh": 32.14,
+            "survival_hours": 13.75,
+            "energy_margin_ratio": 3.33,
+            "electrical_residual_wh": -0.0,
+            "d_min_box_c_vs_finest": 0.0,
+            "d_final_charge_wh_vs_finest": -0.046,
+            "d_failure_min_vs_finest": null
+          },
+          {
+            "dt_s": 30.0,
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 3.9,
+            "min_box_c_raw": 3.924643048113277,
+            "final_box_c_raw": 6.069908256876847,
+            "final_charge_wh": 32.165,
+            "survival_hours": 13.75,
+            "energy_margin_ratio": 3.33,
+            "electrical_residual_wh": 0.0,
+            "d_min_box_c_vs_finest": 0.0,
+            "d_final_charge_wh_vs_finest": -0.021,
+            "d_failure_min_vs_finest": null
+          },
+          {
+            "dt_s": 10.0,
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 3.9,
+            "min_box_c_raw": 3.9254606035406767,
+            "final_box_c_raw": 6.0386691093854346,
+            "final_charge_wh": 32.182,
+            "survival_hours": 13.75,
+            "energy_margin_ratio": 3.33,
+            "electrical_residual_wh": 0.0,
+            "d_min_box_c_vs_finest": 0.0,
+            "d_final_charge_wh_vs_finest": -0.004,
+            "d_failure_min_vs_finest": null
+          },
+          {
+            "dt_s": 5.0,
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 3.9,
+            "min_box_c_raw": 3.925679149022722,
+            "final_box_c_raw": 6.030840989848698,
+            "final_charge_wh": 32.186,
+            "survival_hours": 13.75,
+            "energy_margin_ratio": 3.33,
+            "electrical_residual_wh": 0.0,
+            "d_min_box_c_vs_finest": 0.0,
+            "d_final_charge_wh_vs_finest": 0.0,
+            "d_failure_min_vs_finest": null
+          }
+        ],
+        "verdict_stable": true,
+        "failure_reason_stable": true,
+        "failure_time_spread_min": 0.0,
+        "min_temp_spread_c": 0.0,
+        "worst_min_temp_change_c": 0.0,
+        "raw_min_temp_errors_c": [
+          0.002554589,
+          0.001036101,
+          0.000218545,
+          0.0
+        ],
+        "observed_orders": [
+          1.302,
+          2.245
+        ],
+        "order_estimate": 1.77,
+        "failure_time_quantisation_min": 1.0,
+        "failure_time_quantisation_note": "A failure can only be detected at the end of a step, so the reported depletion instant is quantised by +/- dt. A failure-time shift smaller than this is not evidence of divergence."
+      }
+    ]
+  },
+  "task6_uncertainty": {
+    "category": "D",
+    "category_label": "Assumption or exploratory scenario -- chosen, not verified",
+    "ranges_are_exploratory": true,
+    "axes": {
+      "k_ins_w_per_mk": {
+        "label": "Insulation conductivity",
+        "values": [
+          0.018,
+          0.024,
+          0.03,
+          0.036,
+          0.045
+        ],
+        "baseline": 0.03,
+        "basis": "Published range for XPS/aerogel-type foams. UNVALIDATED for this box."
+      },
+      "capacity_mult": {
+        "label": "Battery capacity multiplier",
+        "values": [
+          1.0,
+          0.9,
+          0.8,
+          0.7,
+          0.6
+        ],
+        "baseline": 1.0,
+        "basis": "Exploratory. No cell tested."
+      },
+      "radiant_offset_c": {
+        "label": "Radiant temperature offset",
+        "values": [
+          20.0,
+          15.0,
+          10.0,
+          5.0,
+          0.0
+        ],
+        "baseline": 10.0,
+        "basis": "Exploratory bound on view-factor uncertainty."
+      }
+    },
+    "one_at_a_time": [
+      {
+        "axis": "k_ins_w_per_mk",
+        "axis_label": "Insulation conductivity",
+        "value": 0.018,
+        "designs": {
+          "baseline_default": {
+            "verdict": "FAIL",
+            "failure_reason": "ENERGY_DEPLETED",
+            "failure_time": "00:14",
+            "failure_minute": 374.0,
+            "min_box_c": -17.7,
+            "min_box_c_raw": -17.694870063919435,
+            "final_box_c_raw": -10.791723158991697,
+            "energy_margin_ratio": 0.99,
+            "cost_inr": 2369.0
+          },
+          "cheapest_passing": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 3.9,
+            "min_box_c_raw": 3.924643048113277,
+            "final_box_c_raw": 6.069908256876847,
+            "energy_margin_ratio": 3.33,
+            "cost_inr": 2468.0
+          },
+          "most_robust": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 12.6,
+            "min_box_c_raw": 12.630885005959904,
+            "final_box_c_raw": 14.056182045521316,
+            "energy_margin_ratio": 8.12,
+            "cost_inr": 4488.0
+          }
+        }
+      },
+      {
+        "axis": "k_ins_w_per_mk",
+        "axis_label": "Insulation conductivity",
+        "value": 0.024,
+        "designs": {
+          "baseline_default": {
+            "verdict": "FAIL",
+            "failure_reason": "ENERGY_DEPLETED",
+            "failure_time": "00:14",
+            "failure_minute": 374.0,
+            "min_box_c": -17.7,
+            "min_box_c_raw": -17.694870063919435,
+            "final_box_c_raw": -10.791723158991697,
+            "energy_margin_ratio": 0.99,
+            "cost_inr": 2369.0
+          },
+          "cheapest_passing": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 3.9,
+            "min_box_c_raw": 3.924643048113277,
+            "final_box_c_raw": 6.069908256876847,
+            "energy_margin_ratio": 3.33,
+            "cost_inr": 2468.0
+          },
+          "most_robust": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 12.6,
+            "min_box_c_raw": 12.630885005959904,
+            "final_box_c_raw": 14.056182045521316,
+            "energy_margin_ratio": 8.12,
+            "cost_inr": 4488.0
+          }
+        }
+      },
+      {
+        "axis": "k_ins_w_per_mk",
+        "axis_label": "Insulation conductivity",
+        "value": 0.03,
+        "designs": {
+          "baseline_default": {
+            "verdict": "FAIL",
+            "failure_reason": "ENERGY_DEPLETED",
+            "failure_time": "00:14",
+            "failure_minute": 374.0,
+            "min_box_c": -17.7,
+            "min_box_c_raw": -17.694870063919435,
+            "final_box_c_raw": -10.791723158991697,
+            "energy_margin_ratio": 0.99,
+            "cost_inr": 2369.0
+          },
+          "cheapest_passing": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 3.9,
+            "min_box_c_raw": 3.924643048113277,
+            "final_box_c_raw": 6.069908256876847,
+            "energy_margin_ratio": 3.33,
+            "cost_inr": 2468.0
+          },
+          "most_robust": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 12.6,
+            "min_box_c_raw": 12.630885005959904,
+            "final_box_c_raw": 14.056182045521316,
+            "energy_margin_ratio": 8.12,
+            "cost_inr": 4488.0
+          }
+        }
+      },
+      {
+        "axis": "k_ins_w_per_mk",
+        "axis_label": "Insulation conductivity",
+        "value": 0.036,
+        "designs": {
+          "baseline_default": {
+            "verdict": "FAIL",
+            "failure_reason": "ENERGY_DEPLETED",
+            "failure_time": "00:14",
+            "failure_minute": 374.0,
+            "min_box_c": -17.7,
+            "min_box_c_raw": -17.694870063919435,
+            "final_box_c_raw": -10.791723158991697,
+            "energy_margin_ratio": 0.99,
+            "cost_inr": 2369.0
+          },
+          "cheapest_passing": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 3.9,
+            "min_box_c_raw": 3.924643048113277,
+            "final_box_c_raw": 6.069908256876847,
+            "energy_margin_ratio": 3.33,
+            "cost_inr": 2468.0
+          },
+          "most_robust": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 12.6,
+            "min_box_c_raw": 12.630885005959904,
+            "final_box_c_raw": 14.056182045521316,
+            "energy_margin_ratio": 8.12,
+            "cost_inr": 4488.0
+          }
+        }
+      },
+      {
+        "axis": "k_ins_w_per_mk",
+        "axis_label": "Insulation conductivity",
+        "value": 0.045,
+        "designs": {
+          "baseline_default": {
+            "verdict": "FAIL",
+            "failure_reason": "ENERGY_DEPLETED",
+            "failure_time": "00:14",
+            "failure_minute": 374.0,
+            "min_box_c": -17.7,
+            "min_box_c_raw": -17.694870063919435,
+            "final_box_c_raw": -10.791723158991697,
+            "energy_margin_ratio": 0.99,
+            "cost_inr": 2369.0
+          },
+          "cheapest_passing": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 3.9,
+            "min_box_c_raw": 3.924643048113277,
+            "final_box_c_raw": 6.069908256876847,
+            "energy_margin_ratio": 3.33,
+            "cost_inr": 2468.0
+          },
+          "most_robust": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 12.6,
+            "min_box_c_raw": 12.630885005959904,
+            "final_box_c_raw": 14.056182045521316,
+            "energy_margin_ratio": 8.12,
+            "cost_inr": 4488.0
+          }
+        }
+      },
+      {
+        "axis": "capacity_mult",
+        "axis_label": "Battery capacity multiplier",
+        "value": 1.0,
+        "designs": {
+          "baseline_default": {
+            "verdict": "FAIL",
+            "failure_reason": "ENERGY_DEPLETED",
+            "failure_time": "00:14",
+            "failure_minute": 374.0,
+            "min_box_c": -17.7,
+            "min_box_c_raw": -17.694870063919435,
+            "final_box_c_raw": -10.791723158991697,
+            "energy_margin_ratio": 0.99,
+            "cost_inr": 2369.0
+          },
+          "cheapest_passing": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 3.9,
+            "min_box_c_raw": 3.924643048113277,
+            "final_box_c_raw": 6.069908256876847,
+            "energy_margin_ratio": 3.33,
+            "cost_inr": 2468.0
+          },
+          "most_robust": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 12.6,
+            "min_box_c_raw": 12.630885005959904,
+            "final_box_c_raw": 14.056182045521316,
+            "energy_margin_ratio": 8.12,
+            "cost_inr": 4488.0
+          }
+        }
+      },
+      {
+        "axis": "capacity_mult",
+        "axis_label": "Battery capacity multiplier",
+        "value": 0.9,
+        "designs": {
+          "baseline_default": {
+            "verdict": "FAIL",
+            "failure_reason": "ENERGY_DEPLETED",
+            "failure_time": "23:42",
+            "failure_minute": 342.5,
+            "min_box_c": -17.7,
+            "min_box_c_raw": -17.694870063919435,
+            "final_box_c_raw": -10.365800794172339,
+            "energy_margin_ratio": 0.99,
+            "cost_inr": 2369.0
+          },
+          "cheapest_passing": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 3.9,
+            "min_box_c_raw": 3.924643048113277,
+            "final_box_c_raw": 6.069908256876847,
+            "energy_margin_ratio": 2.71,
+            "cost_inr": 2468.0
+          },
+          "most_robust": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 12.6,
+            "min_box_c_raw": 12.630885005959904,
+            "final_box_c_raw": 14.056182045521316,
+            "energy_margin_ratio": 7.96,
+            "cost_inr": 4488.0
+          }
+        }
+      },
+      {
+        "axis": "capacity_mult",
+        "axis_label": "Battery capacity multiplier",
+        "value": 0.8,
+        "designs": {
+          "baseline_default": {
+            "verdict": "FAIL",
+            "failure_reason": "ENERGY_DEPLETED",
+            "failure_time": "23:09",
+            "failure_minute": 309.5,
+            "min_box_c": -17.7,
+            "min_box_c_raw": -17.694870063919435,
+            "final_box_c_raw": -10.075112285460515,
+            "energy_margin_ratio": 1.0,
+            "cost_inr": 2369.0
+          },
+          "cheapest_passing": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 3.9,
+            "min_box_c_raw": 3.924643048113277,
+            "final_box_c_raw": 6.069908256876847,
+            "energy_margin_ratio": 1.93,
+            "cost_inr": 2468.0
+          },
+          "most_robust": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 12.6,
+            "min_box_c_raw": 12.630885005959904,
+            "final_box_c_raw": 14.056182045521316,
+            "energy_margin_ratio": 7.76,
+            "cost_inr": 4488.0
+          }
+        }
+      },
+      {
+        "axis": "capacity_mult",
+        "axis_label": "Battery capacity multiplier",
+        "value": 0.7,
+        "designs": {
+          "baseline_default": {
+            "verdict": "FAIL",
+            "failure_reason": "ENERGY_DEPLETED",
+            "failure_time": "22:34",
+            "failure_minute": 274.0,
+            "min_box_c": -17.7,
+            "min_box_c_raw": -17.694870063919435,
+            "final_box_c_raw": -10.777799795058053,
+            "energy_margin_ratio": 0.98,
+            "cost_inr": 2369.0
+          },
+          "cheapest_passing": {
+            "verdict": "FAIL",
+            "failure_reason": "ENERGY_DEPLETED",
+            "failure_time": "07:22",
+            "failure_minute": 802.0,
+            "min_box_c": 3.9,
+            "min_box_c_raw": 3.9487473781413933,
+            "final_box_c_raw": 3.9487473781413933,
+            "energy_margin_ratio": 0.99,
+            "cost_inr": 2468.0
+          },
+          "most_robust": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 12.6,
+            "min_box_c_raw": 12.630885005959904,
+            "final_box_c_raw": 14.056182045521316,
+            "energy_margin_ratio": 7.5,
+            "cost_inr": 4488.0
+          }
+        }
+      },
+      {
+        "axis": "capacity_mult",
+        "axis_label": "Battery capacity multiplier",
+        "value": 0.6,
+        "designs": {
+          "baseline_default": {
+            "verdict": "FAIL",
+            "failure_reason": "ENERGY_DEPLETED",
+            "failure_time": "22:02",
+            "failure_minute": 242.0,
+            "min_box_c": -17.7,
+            "min_box_c_raw": -17.694870063919435,
+            "final_box_c_raw": -10.199787260682667,
+            "energy_margin_ratio": 0.97,
+            "cost_inr": 2369.0
+          },
+          "cheapest_passing": {
+            "verdict": "FAIL",
+            "failure_reason": "ENERGY_DEPLETED",
+            "failure_time": "05:41",
+            "failure_minute": 701.0,
+            "min_box_c": 6.0,
+            "min_box_c_raw": 6.013184511329446,
+            "final_box_c_raw": 6.013184511329446,
+            "energy_margin_ratio": 0.99,
+            "cost_inr": 2468.0
+          },
+          "most_robust": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 12.6,
+            "min_box_c_raw": 12.630885005959904,
+            "final_box_c_raw": 14.056182045521316,
+            "energy_margin_ratio": 7.16,
+            "cost_inr": 4488.0
+          }
+        }
+      },
+      {
+        "axis": "radiant_offset_c",
+        "axis_label": "Radiant temperature offset",
+        "value": 20.0,
+        "designs": {
+          "baseline_default": {
+            "verdict": "FAIL",
+            "failure_reason": "ENERGY_DEPLETED",
+            "failure_time": "23:50",
+            "failure_minute": 350.5,
+            "min_box_c": -20.0,
+            "min_box_c_raw": -19.9877638380532,
+            "final_box_c_raw": -14.074841650695866,
+            "energy_margin_ratio": 0.99,
+            "cost_inr": 2369.0
+          },
+          "cheapest_passing": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": -0.7,
+            "min_box_c_raw": -0.700526629387566,
+            "final_box_c_raw": 1.4491968145368188,
+            "energy_margin_ratio": 2.99,
+            "cost_inr": 2468.0
+          },
+          "most_robust": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 8.6,
+            "min_box_c_raw": 8.625033482794159,
+            "final_box_c_raw": 10.030828594231501,
+            "energy_margin_ratio": 7.82,
+            "cost_inr": 4488.0
+          }
+        }
+      },
+      {
+        "axis": "radiant_offset_c",
+        "axis_label": "Radiant temperature offset",
+        "value": 15.0,
+        "designs": {
+          "baseline_default": {
+            "verdict": "FAIL",
+            "failure_reason": "ENERGY_DEPLETED",
+            "failure_time": "00:04",
+            "failure_minute": 364.5,
+            "min_box_c": -18.9,
+            "min_box_c_raw": -18.864124641298503,
+            "final_box_c_raw": -11.699427392612826,
+            "energy_margin_ratio": 0.99,
+            "cost_inr": 2369.0
+          },
+          "cheapest_passing": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 1.6,
+            "min_box_c_raw": 1.5540395528866047,
+            "final_box_c_raw": 3.7018145165756673,
+            "energy_margin_ratio": 3.16,
+            "cost_inr": 2468.0
+          },
+          "most_robust": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 10.6,
+            "min_box_c_raw": 10.577255543591095,
+            "final_box_c_raw": 11.992727329369485,
+            "energy_margin_ratio": 7.96,
+            "cost_inr": 4488.0
+          }
+        }
+      },
+      {
+        "axis": "radiant_offset_c",
+        "axis_label": "Radiant temperature offset",
+        "value": 10.0,
+        "designs": {
+          "baseline_default": {
+            "verdict": "FAIL",
+            "failure_reason": "ENERGY_DEPLETED",
+            "failure_time": "00:14",
+            "failure_minute": 374.0,
+            "min_box_c": -17.7,
+            "min_box_c_raw": -17.694870063919435,
+            "final_box_c_raw": -10.791723158991697,
+            "energy_margin_ratio": 0.99,
+            "cost_inr": 2369.0
+          },
+          "cheapest_passing": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 3.9,
+            "min_box_c_raw": 3.924643048113277,
+            "final_box_c_raw": 6.069908256876847,
+            "energy_margin_ratio": 3.33,
+            "cost_inr": 2468.0
+          },
+          "most_robust": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 12.6,
+            "min_box_c_raw": 12.630885005959904,
+            "final_box_c_raw": 14.056182045521316,
+            "energy_margin_ratio": 8.12,
+            "cost_inr": 4488.0
+          }
+        }
+      },
+      {
+        "axis": "radiant_offset_c",
+        "axis_label": "Radiant temperature offset",
+        "value": 5.0,
+        "designs": {
+          "baseline_default": {
+            "verdict": "FAIL",
+            "failure_reason": "ENERGY_DEPLETED",
+            "failure_time": "00:28",
+            "failure_minute": 388.5,
+            "min_box_c": -16.7,
+            "min_box_c_raw": -16.670176761826305,
+            "final_box_c_raw": -11.056219146943782,
+            "energy_margin_ratio": 0.98,
+            "cost_inr": 2369.0
+          },
+          "cheapest_passing": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 6.4,
+            "min_box_c_raw": 6.410143727690083,
+            "final_box_c_raw": 8.55242859484466,
+            "energy_margin_ratio": 3.52,
+            "cost_inr": 2468.0
+          },
+          "most_robust": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 14.8,
+            "min_box_c_raw": 14.78506684928682,
+            "final_box_c_raw": 16.220390458782557,
+            "energy_margin_ratio": 8.28,
+            "cost_inr": 4488.0
+          }
+        }
+      },
+      {
+        "axis": "radiant_offset_c",
+        "axis_label": "Radiant temperature offset",
+        "value": 0.0,
+        "designs": {
+          "baseline_default": {
+            "verdict": "FAIL",
+            "failure_reason": "ENERGY_DEPLETED",
+            "failure_time": "00:45",
+            "failure_minute": 405.0,
+            "min_box_c": -15.6,
+            "min_box_c_raw": -15.633965945058195,
+            "final_box_c_raw": -11.17985233382488,
+            "energy_margin_ratio": 0.96,
+            "cost_inr": 2369.0
+          },
+          "cheapest_passing": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 9.0,
+            "min_box_c_raw": 9.008931558295417,
+            "final_box_c_raw": 11.147866397850137,
+            "energy_margin_ratio": 3.72,
+            "cost_inr": 2468.0
+          },
+          "most_robust": {
+            "verdict": "PASS",
+            "failure_reason": null,
+            "failure_time": null,
+            "failure_minute": null,
+            "min_box_c": 17.0,
+            "min_box_c_raw": 17.038536055694557,
+            "final_box_c_raw": 18.484145156451216,
+            "energy_margin_ratio": 8.45,
+            "cost_inr": 4488.0
+          }
+        }
+      }
+    ],
+    "combined_worst_case": {
+      "baseline_default": {
+        "verdict": "FAIL",
+        "failure_reason": "TEMP_BELOW_OPERATING",
+        "failure_time": "19:16",
+        "min_box_c": -20.9,
+        "energy_margin_ratio": 4.8
+      },
+      "cheapest_passing": {
+        "verdict": "FAIL",
+        "failure_reason": "ENERGY_DEPLETED",
+        "failure_time": "02:24",
+        "min_box_c": -12.8,
+        "energy_margin_ratio": 0.99
+      },
+      "most_robust": {
+        "verdict": "FAIL",
+        "failure_reason": "ENERGY_DEPLETED",
+        "failure_time": "07:05",
+        "min_box_c": -10.7,
+        "energy_margin_ratio": 0.99
+      }
+    },
+    "ranking_flips": [
+      {
+        "axis": "capacity_mult",
+        "value": 0.7,
+        "change": "cheapest_passing FAILS while most_robust PASSES"
+      },
+      {
+        "axis": "capacity_mult",
+        "value": 0.6,
+        "change": "cheapest_passing FAILS while most_robust PASSES"
+      }
+    ],
+    "ranking_survives": false,
+    "disclaimer": "These are SCENARIO PASS RATES over assumed input ranges. They are not probabilities of real-world survival. The ranges were chosen to bound engineering plausibility, not measured."
+  },
+  "unresolved": [
+    "Box thermal conductance UA is UNVALIDATED. It derives from an assumed conductivity and an assumed geometry; no bench measurement exists.",
+    "The battery capacity-vs-temperature curve is an ASSUMPTION. No specific cell datasheet is attached and no cell was tested.",
+    "The radiant temperature offset is a single parameter standing in for full view-factor geometry. It is the largest uncertainty in the loss path.",
+    "SOLAR HEATING OF THE STRUCTURE IS NOT MODELLED. The model computes solar ELECTRICAL generation only. A sunlit payload is not warmed in this model, so daytime scenarios are biased cold.",
+    "The engine's ISA is isothermal above 11 km and therefore diverges from the published standard atmosphere above about 20 km (see benchmark B1).",
+    "Thermal residual in the energy balance is an identity for forward Euler and is not an accuracy measure; real truncation error is quantified in Tasks 1 and 4.",
+    "Overheating failure mode is modelled but has never been observed in flight.",
+    "Uncertainty ranges are exploratory and are not probability distributions, so no survival probability is reported anywhere in this project.",
+    "Category E (physical experiment) is empty. No bench test was conducted."
+  ]
+}
