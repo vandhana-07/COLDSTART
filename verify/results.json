@@ -1,12 +1,12 @@
 {
-  "generated_utc": "2026-10-12T08:32:26Z",
+  "generated_utc": "2026-10-12T08:33:31Z",
   "engine_version": "coldstart-engine-1.0",
-  "provenance": "LIVE",
+  "provenance": "SNAPSHOT",
   "snapshot": {
-    "active": false,
-    "retrieved_utc": null,
-    "badge": null,
-    "note": null
+    "active": true,
+    "retrieved_utc": "2026-10-12T06:54:17Z",
+    "badge": "SNAPSHOT 2026-10-12T06:54:17Z",
+    "note": "Pinned demo snapshot: a REAL response captured at 2026-10-12T06:54:17Z, replayed without contacting the network."
   },
   "site": {
     "lat": 13.0067,
