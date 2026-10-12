@@ -37,7 +37,7 @@ FILL = {
     # ---- design numbers (slides 2, 4, 5) ------------------------------
     # SOURCE:  cd ../app && python3 frontier.py
     # Forecast: GFS live, Chennai 13.0067N 80.2570E, 12 Oct 2026, launch 18:00 IST,
-    # 13 h night. Engine coldstart-engine-1.0, box 0.0864 m2, k = 0.030 W/m.K.
+    # 11.5 h night. Engine coldstart-engine-1.0, box 0.0864 m2, k = 0.030 W/m.K.
     # Re-run frontier.py after any bench calibration and update these numbers.
     #
     # NOTE ON 'tolerance': every value below is the largest multiple of the
@@ -49,7 +49,7 @@ FILL = {
     "default_cost":   2369,               # the default 6/10mm/-10C build, for comparison
 
     # the recommendation: cheapest design that survives the night
-    "rec_margin":     "3.33x",
+    "rec_margin":     "3.35x",
     "rec_cost":       2468,
     "rec_mass":       "0.75",
     "rec_tolerance":  "50%",
@@ -59,7 +59,7 @@ FILL = {
 
     # 'just add batteries' - does NOT survive
     "lazy_cost":      3369,
-    "lazy_fail_time": "04:07",
+    "lazy_fail_time": "04:05",
     "lazy_deficit":   "1.8x",             # foam would have to be this much better
     "default_deficit": "5.0x",            # foam would have to be this much better
 
@@ -261,17 +261,17 @@ def slide2(slide):
     ], size=19)
 
     y = 3.18
-    stat_card(slide, CONTENT_X, y, 5.86, 1.55, "26.5 km", "float altitude - real GFS 20 hPa pressure level")
-    stat_card(slide, CONTENT_X + 6.17, y, 5.86, 1.55, "-52.5 C",
+    stat_card(slide, CONTENT_X, y, 5.86, 1.55, "26.4 km", "float altitude - real GFS 20 hPa pressure level")
+    stat_card(slide, CONTENT_X + 6.17, y, 5.86, 1.55, "-51.5 C",
               "forecast air temperature on 12 Oct over Chennai", big_color=HEAD)
-    stat_card(slide, CONTENT_X + 12.34, y, 5.86, 1.55, "13 h",
+    stat_card(slide, CONTENT_X + 12.34, y, 5.86, 1.55, "11.5 h",
               "real darkness - from solar geometry, not a guess", big_color=WARN)
 
     y = 4.90
     card(slide, CONTENT_X, y, 8.95, 2.75)
     card_header(slide, CONTENT_X + 0.24, y + 0.16, 8.4, "THE PROBLEM")
     bullets(slide, CONTENT_X + 0.24, y + 0.66, 8.5, 2.0, [
-        "A balloon payload floats where it is -52 C and dark for 13 hours.",
+        "A balloon payload floats where it is -52 C and dark for 11.5 hours.",
         "A cold Li-ion pack cannot give up its bottom 60% of charge - the energy is there but frozen.",
         "Heaters fix the cold, but heaters burn the very energy you are trying to save.",
         "Today this is sized on textbook tables, not on the forecast for the actual launch date.",
@@ -296,7 +296,7 @@ def slide2(slide):
     para(tf, "VERDICT", size=12, color=DIM, bold=True, font=F_HEAD, space_after=6)
     para(tf, f"FAIL - {FILL['fail_reason']} at {FILL['fail_time']} IST", size=19, color=BAD, bold=True,
          font=F_HEAD, space_after=4)
-    para(tf, f"{FILL['fail_hours']} h of a 13 h night survived", size=13.5, color=DIM, space_after=0)
+    para(tf, f"{FILL['fail_hours']} h of the 11.5 h night survived", size=13.5, color=DIM, space_after=0)
 
     tb, tf = textbox(slide, CONTENT_X + 9.5, y + 0.68, 8.5, 1.9)
     para(tf, "SAME ENGINE, ONE BUTTON LATER", size=12, color=DIM, bold=True,
@@ -428,7 +428,7 @@ def slide4(slide):
         bullets(slide, CONTENT_X + 0.24, y + 0.58, 8.5, 2.10, [
             "ATMOSPHERE (checked): our upper-air profile comes from NOAA GFS. Because one model "
             "can be biased, we cross-checked it against the independent ECMWF model - from the "
-            "surface to ~20 km they agree to a mean of 0.2 K.",
+            "surface to ~20 km they agree to a mean of 0.3 K.",
             "DECISION (checked): re-run with every uncertain input at its range limit. The "
             f"cheapest survivor holds {FILL['rec_tolerance']} of insulation error but only "
             f"{FILL['rec_scen']} stressed scenarios; {FILL['robust_scen']} costs "

@@ -17,6 +17,11 @@ dict straight out of build_ppt.py and assert:
   2. none of the superseded numbers survive anywhere in the deck;
   3. the headline cost, mass and margin are what the engine computes NOW;
   4. the claims the slides make about PASS/FAIL are true of the engine.
+
+The deck is built from, and checked against, the PINNED demo snapshot
+(`data/demo_snapshot.json`), not a live fetch. That is deliberate: a deck is a
+fixed artefact, so the data behind it must be fixed too. Checking a pinned deck
+against live data makes this file fail whenever the weather forecast updates.
 """
 
 import os
@@ -77,7 +82,13 @@ class TestDeckMatchesEngine(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.fill, cls.src = load_fill()
-        env = data_sources.fetch_environment(13.0067, 80.2570, "2026-10-12")
+        # The deck is pinned to the demo snapshot, so the test must evaluate the
+        # engine on that same frozen input. Fetching live here made the deck look
+        # wrong every time the forecast refreshed: the numbers moved by ~0.02x in
+        # margin and 1-2 minutes in failure time, which is data drift, not a bug.
+        # Comparing a pinned deck against live data can never be deterministic.
+        env = data_sources.fetch_environment(13.0067, 80.2570, "2026-10-12",
+                                             snapshot=True)
         env["launch_local"] = datetime(2026, 10, 12, 18, 0,
                                      tzinfo=timezone(timedelta(hours=5, minutes=30)))
         cls.env = env
