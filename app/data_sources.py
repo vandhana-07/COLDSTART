@@ -10,6 +10,7 @@ Run verify_sources.py to prove it live during the demo.
 """
 
 import json
+import math
 import os
 import time
 import urllib.parse
@@ -115,14 +116,37 @@ def fetch_environment(lat, lon, date_str):
         gh = solar["hourly"]["shortwave_radiation"][i] if i < len(solar["hourly"]["shortwave_radiation"]) else None
         solar_by_index.append(float(gh) if gh is not None else 0.0)
 
-    # Count the REAL night length for this date and place, from solar geometry.
-    from physics import solar_elevation_deg
+    # Night duration for this date and place, measured AT FLOAT ALTITUDE.
+    #
+    # Height matters. Looking down from height h, the horizon sits below the
+    # level horizon by the dip angle
+    #
+    #     dip = arccos(R_earth / (R_earth + h))
+    #
+    # SOURCE: standard geometric horizon-dip relation, the same correction used
+    #         by altitude-corrected sunrise/sunset tables. At h = 26 km with
+    #         R_earth = 6371 km the dip is 5.17 deg, so the payload is still in
+    #         daylight for about 21 minutes after ground sunset, and again before
+    #         ground sunrise. Ignoring it overstates the length of the night.
+    #
+    # Sampled at 1-minute resolution, not hourly: hourly sampling quantises the
+    # answer by up to +/-1 h, which is larger than the ~0.7 h the dip is worth,
+    # so hourly sampling would hide the very effect being corrected.
+    #
+    # This is a REPORTED DURATION, not the mission-window definition and not an
+    # input to any physics (audit finding B1). The simulation decides day/night
+    # for itself, per timestep, from the sun's elevation.
+    from engine.atmosphere import solar_elevation_deg
+    from engine import params as _P
     d = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=IST)
-    night = 0
-    for h in range(24):
-        when_utc = (d + timedelta(hours=h)).astimezone(timezone.utc)
-        if solar_elevation_deg(lat, lon, when_utc) <= 0:
-            night += 1
+    dip_deg = math.degrees(math.acos(_P.EARTH_RADIUS_KM
+                                     / (_P.EARTH_RADIUS_KM + float(_P.BURST_ALT_KM))))
+    dark_minutes = 0
+    for m in range(24 * 60):
+        when_utc = (d + timedelta(minutes=m)).astimezone(timezone.utc)
+        if solar_elevation_deg(lat, lon, when_utc) <= -dip_deg:
+            dark_minutes += 1
+    night = round(dark_minutes / 60.0, 2)
 
     return {
         "site": {"lat": lat, "lon": lon},

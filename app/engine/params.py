@@ -145,6 +145,7 @@ DEFAULT_BOX_VOLUME_M3 = 0.001728       # 0.12^3
 # ASSUMPTION: a latex sounding balloon flight carrying ~1 kg.
 ASCENT_MIN = 120.0                     # minutes to reach float altitude
 BURST_ALT_KM = 26.0                    # ASSUMPTION
+EARTH_RADIUS_KM = 6371.0               # SOURCE: IUGG mean Earth radius 6371.0088 km
 FLOAT_MIN = 660.0                      # minutes at altitude
 DESCENT_MIN = 45.0                     # minutes under parachute
 DEFAULT_DURATION_MIN = ASCENT_MIN + FLOAT_MIN + DESCENT_MIN
