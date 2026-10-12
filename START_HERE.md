@@ -80,7 +80,7 @@ labels it `CACHED`. It never invents data.
 |---|---|---|
 | `app/static/index.html` | The screen. Buttons, charts, verdict. | …the **UI person** |
 | `app/server.py` | The web server. Sends pages, handles buttons. | …the **glue person** |
-| `app/physics.py` | The science. Battery + heat + power maths. | …the **science person** |
+| `app/engine/` | The science. Battery + heat + power maths, split into `thermal.py`, `battery.py`, `mission.py`, `optimizer.py`. | …the **science person** |
 | `app/data_sources.py` | Fetches real data from the internet. | …the **data person** |
 
 Everything is heavily commented. Every number is marked either
@@ -94,7 +94,7 @@ Everything is heavily commented. Every number is marked either
 | Person | Role | Owns | Score it feeds |
 |---|---|---|---|
 | **A** | Data & back end | `data_sources.py`, `server.py` | Technical implementation |
-| **B** | Physics & validation | `physics.py`, the **bench rig** | Feasibility & viability |
+| **B** | Physics & validation | `app/engine/`, the **bench rig** | Feasibility & viability |
 | **C** | Front end & pitch | `index.html`, the slides, the speaking | Presentation & communication |
 
 C is not the "least technical" role — C is the person who makes the demo land. That is
@@ -117,7 +117,7 @@ worth as much as the code.
 ### Thu 8 Oct — Learn by breaking it (2 hours each)
 - **A:** Open `data_sources.py`. Change `PRESSURE_LEVELS` and see what happens. Try a
   different `date`. Get comfortable that this file is just "ask a website for numbers."
-- **B:** Open `physics.py`. Change `CAPACITY_VS_TEMP` values. Watch the verdict change.
+- **B:** Open `app/engine/battery.py`. Change the `CAPACITY_VS_TEMP` values. Watch the verdict change.
   Understand `heater_power_w()` — the two ways heat escapes.
 - **C:** Open `index.html`. Change the colours in `:root`. Move a box. Reload the page.
   Learn that the screen is just text you can edit.
@@ -155,7 +155,7 @@ team in the room.
 a temperature sensor, and an ESP32 that prints the temperature every few seconds.
 
 **What you do with it:** cool the box (ice + salt, or a fridge), log the temperature falling,
-and compare the measured curve to what `physics.py` predicted.
+and compare the measured curve to what `app/engine/battery.py` predicted.
 
 **What you say:** *"Our model predicted X minutes to reach −10 °C. We measured Y minutes in
 this building at 2 AM. That's a Z% error. Here is the graph."*

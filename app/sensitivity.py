@@ -14,6 +14,27 @@ k_ins enters the model as (k/t)*A, so scaling k_ins is the same as scaling UA.
 One sweep therefore covers the whole measurement error.
 
 Run:  python3 sensitivity.py
+
+READ THIS BEFORE QUOTING ANY NUMBER IT PRINTS
+---------------------------------------------
+The current model lives in `app/engine/` (thermal.py, battery.py, mission.py,
+optimizer.py). This script still runs `app/physics.py`, which is the SUPERSEDED
+model: it uses the old 0.035 m2 box, the old 0.018 W/m/K aerogel assumption and
+the old 840-minute window.
+
+The two models DISAGREE, and the difference has been measured:
+
+    design              physics.py   engine/
+    10 cells / 10 mm    PASS         FAIL          <- the verdict flips
+    cheapest passing    Rs 2130      Rs 2468
+
+So the numbers below are NOT the numbers on the slides and must not be quoted
+against them. The live, engine-backed sensitivity analysis is in
+`app/engine/uncertainty.py` (`sensitivity_ranking`) and is what the app's
+Stress-Test tab shows.
+
+Porting this script to `app/engine/` is a deliberate, separate change: it would
+move the results above, so it has NOT been done as part of a reference cleanup.
 """
 
 import os
@@ -64,6 +85,10 @@ def main():
         tzinfo=data_sources.IST)
     night = env["night_hours"]
 
+    print("=" * 96)
+    print("  !! LEGACY MODEL (app/physics.py) -- SUPERSEDED. These numbers are NOT")
+    print("  !! the ones on the slides and must not be quoted against them.")
+    print("  !! Current model: app/engine/   Live analysis: app/engine/uncertainty.py")
     print("=" * 96)
     print(f"  SENSITIVITY TO THE INSULATION CONSTANT   |   real forecast: 12 Oct 2026, Chennai")
     print(f"  night = {night} h   |   flight = 14 h   |   reserve floor = 10%")
