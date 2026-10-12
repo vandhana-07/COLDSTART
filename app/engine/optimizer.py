@@ -226,8 +226,17 @@ def optimise(env, base_design, objective="best_balance", progress=None):
     progress     : optional callable(done, total) for a live progress bar
 
     Never raises for an empty feasible set: it returns best=None and a message,
-    so the UI can say "nothing in this grid works" rather than failing.
+    so the UI can say "nothing in this grid works" rather than failing. It DOES
+    raise for an objective it does not know, before spending any compute.
     """
+    valid = [key for key, _, _ in OBJECTIVES] + ["all"]
+    if objective not in valid:
+        # `_pick_best` already raises for an unknown objective, but this function
+        # filters the objective list BEFORE reaching it, so a typo used to fall
+        # through to the `picks.get(...)` default and quietly return the
+        # best_balance answer to a question nobody asked. Fail fast instead.
+        raise ValueError(f"unknown objective {objective!r}; expected one of {valid}")
+
     min_op = base_design.get("min_operating_c", -20.0)
     max_op = base_design.get("max_operating_c", 60.0)
 
