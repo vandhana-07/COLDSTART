@@ -1,9 +1,8 @@
 # COLDSTART — physics verification results
 
-Generated: **2026-10-12T08:42:57Z**  
+Generated: **2026-10-12T08:54:02Z**  
 Engine: `coldstart-engine-1.0`  
-Forecast: SNAPSHOT  
-**SNAPSHOT 2026-10-12T06:54:17Z** — replayed from `data/demo_snapshot.json`, a frozen set of real API responses. No network was contacted. Re-run without `--snapshot` for live data.
+Forecast: LIVE  
 
 Reproduce with:
 

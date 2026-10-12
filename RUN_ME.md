@@ -36,11 +36,13 @@ You will see:
 
 ```
   COLDSTART running
-  open  ->  http://localhost:8000
+  open  ->  http://127.0.0.1:8000
+            (if that ever fails, try http://localhost:8000)
   engine->  coldstart-engine-1.0
 ```
 
-Open **http://localhost:8000** in your browser.
+Open **http://127.0.0.1:8000** in your browser. Use the `127.0.0.1` form, not
+`localhost` — see "If localhost does not open" below for why.
 
 To use a different port (e.g. if 8000 is taken):
 
@@ -53,6 +55,44 @@ Stop it with **Ctrl+C**.
 > **Note:** the server binds to `0.0.0.0`, so it also works if you need to reach
 > it from a phone or another laptop on the same network — use
 > `http://<your-laptop-ip>:8000`. For a solo laptop demo this does not matter.
+
+### If localhost does not open
+
+Run the built-in checker first — it tests all of this automatically:
+
+```
+python3 diagnose.py          # Windows: python diagnose.py
+```
+
+Then check the four usual causes:
+
+**1. Use `127.0.0.1`, not `localhost`.** On many Windows machines and some
+macOS setups, `localhost` resolves to IPv6 (`::1`) before IPv4, while this
+server listens on IPv4 only. The browser then reports "can't be reached" even
+though the server is running perfectly. **`http://127.0.0.1:8000` always works.**
+This is the single most common cause.
+
+**2. Port 8000 already taken.** You will see `OSError: [Errno 98] Address
+already in use` (or `10048` on Windows). Either an earlier copy is still running
+— in which case just open the URL — or something else owns the port:
+
+```
+PORT=8080 python3 server.py          # macOS / Linux
+set PORT=8080 && python server.py    # Windows Command Prompt
+$env:PORT=8080; python server.py     # Windows PowerShell
+```
+then open `http://127.0.0.1:8080`.
+
+**3. Do not open `app/static/index.html` by double-clicking it.** That opens a
+`file://` page, and the page calls `/api/plan`, which only exists behind the
+server. It will look broken no matter what you do. Always use `http://`.
+
+**4. VPN or firewall.** Some VPN clients intercept loopback traffic. Disconnect
+the VPN, or try `http://127.0.0.1:8000` in a different browser.
+
+**Windows note:** the command is `python`, not `python3`. If `python` opens the
+Microsoft Store, install Python from python.org and tick **"Add python.exe to
+PATH"**.
 
 ---
 

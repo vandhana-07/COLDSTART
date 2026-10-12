@@ -686,9 +686,14 @@ def _battle_public(b):
 
 def main():
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+    # Print the 127.0.0.1 form FIRST, deliberately. On many Windows and some
+    # macOS setups "localhost" resolves to IPv6 (::1) before IPv4, but this
+    # server listens on IPv4 only -- so the browser can fail on http://localhost
+    # while the server is running perfectly. 127.0.0.1 is unambiguous.
     print("")
     print("  COLDSTART running")
-    print(f"  open  ->  http://localhost:{PORT}")
+    print(f"  open  ->  http://127.0.0.1:{PORT}")
+    print(f"            (if that ever fails, try http://localhost:{PORT})")
     print(f"  engine->  {getattr(P, 'ENGINE_VERSION', 'engine-v1')}")
     print("")
     try:
